@@ -21,12 +21,14 @@ export type DayName = string // ISO Date string (YYYY-MM-DD)
 
 export type MealName = string // Breakfast, Lunch, Dinner, Snack, Brunch, Second Breakfast, Elevensies, etc.
 export type Meal = {
+	calories?: number // specific number of calories that this meal is made of
+	percentage?: number // percentage of calories that this meal takes up in the day
+	// TODO: people?: PersonName | Array<PersonName> | PersonTag | Array<PersonTag> // who does this meal (in these proportions) apply to (default is everyone)
 	dishes: Record<DishName, {
-		percentage?: number // percentage of the meal this dish makes up, by calories (specify only this or servings)
 		servings?: number // specific number of servings this dish is made of for this meal (specify only this or percentage)
+		percentage?: number // percentage of the meal this dish makes up, by calories (specify only this or servings)
 		// people?: PersonName | Array<PersonName> | PersonTag | Array<PersonTag> // who does this dish (in these proportions) apply to (default is everyone in the meal)
 	}>
-	// TODO: people?: PersonName | Array<PersonName> | PersonTag | Array<PersonTag> // who does this meal (in these proportions) apply to (default is everyone)
 }
 
 export type DishName = string
