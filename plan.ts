@@ -1,13 +1,8 @@
 import * as NDJSON from "https://deno.land/x/ndjson@1.1.0/mod.ts";
+import {Command} from "jsr:@cliffy/command@1.0.0-rc.7";
 import {Input, Select, Number} from "jsr:@cliffy/prompt@1.0.0-rc.7";
 import * as YAML from "jsr:@std/yaml"
 import {DateTime} from "npm:luxon";
-
-////////////////////////////////////////////////////////////////////////////////
-
-function main() {
-	planMenu()
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES
@@ -27,7 +22,7 @@ type Person = {
 	sex: "female" | "male" // based on metabolism
 	height: number // in cm
 	weight: number // in kg
-	goal: "lose" | "maintain" | "gain"
+	goal: "lose weight" | "maintain weight" | "gain weight"
 	activity: "sedentary" | "light" | "moderate" | "intense" | "athlete"
 	tags?: Array<PersonTag> // tags allow grouping of people
 }
@@ -75,7 +70,7 @@ type Food = {
 ////////////////////////////////////////////////////////////////////////////////
 
 const foods: Array<Food> = await NDJSON.readNdjson("./data/foods.ndjson")
-const plan: Plan = {people: {}, days: {}, dishes: {}, foods: {}}//YAML.parse(Deno.readTextFileSync("./plan.yaml"))
+let plan: Plan = {people: {}, days: {}, dishes: {}, foods: {}}
 
 ////////////////////////////////////////////////////////////////////////////////
 // PROMTS
@@ -87,18 +82,14 @@ async function planMenu(): Promise<void> {
 	const next = await Select.prompt({info: true,
 		message: "Plan",
 		options: [
-			{name: "✅ Done", value: done},
-			{name: "👤 People", value: peopleMenu},
-			{name: "📆 Days", value: daysMenu},
-			{name: "🍽️  Dishes", value: dishesMenu},
+			{name: "✅ Done", value: () => {}},
+			{name: `👤 People (${Object.keys(plan.people).length})`, value: peopleMenu},
+			{name: `📆 Days (${Object.keys(plan.days).length})`, value: daysMenu},
+			{name: `🍽️  Dishes (${Object.keys(plan.dishes).length})`, value: dishesMenu},
 		],
 	})
 	console.clear()
 	return next()
-}
-
-function done() {
-	console.log(YAML.stringify(plan))
 }
 
 // PEOPLE
@@ -109,7 +100,7 @@ async function peopleMenu(): Promise<void> {
 		options: [
 			{name: "✅ Done", value: planMenu},
 			{name: "➕ New Person", value: newPerson},
-			...Object.keys(plan.people).map(person => ({name: `🧍 ${person}`, value: () => personMenu(person)})),
+			...Object.keys(plan.people).map(person => ({name: `🧍 ${person} (${plan.people[person].age}${plan.people[person].sex == "female" ? "♀" : "♂"})`, value: () => personMenu(person)})),
 		],
 	})
 	console.clear()
@@ -123,7 +114,7 @@ async function newPerson(): Promise<void> {
 		sex: ["female", "male"][Math.round(Math.random())] as Person["sex"],
 		height: Math.round(Math.random() * 260 + 12),
 		weight: Math.round(Math.random() * 635),
-		goal: ["lose", "maintain", "gain"][Math.floor(Math.random() * 2)] as Person["goal"],
+		goal: ["lose weight", "maintain weight", "gain weight"][Math.floor(Math.random() * 2)] as Person["goal"],
 		activity: ["sedentary", "light", "moderate", "intense", "athlete"][Math.floor(Math.random() * 4)] as Person["activity"],
 	}
 	console.clear()
@@ -134,19 +125,19 @@ async function newPerson(): Promise<void> {
 
 async function personMenu(person: PersonName): Promise<void> {
 	const next = await Select.prompt({info: true,
-		message: "Person",
+		message: `People ❭ ${person}`,
 		options: [
 			{name: "✅ Done", value: peopleMenu},
 			Select.separator("---"),
-			{name: "👶 Age", value: () => ageInput(person)},
-			{name: "👫 Sex", value: () => sexInput(person)},
-			{name: "🦒 Height", value: () => heightInput(person)},
-			{name: "🐘 Weight", value: () => weightInput(person)},
-			{name: "🏆 Goal", value: () => goalInput(person)},
-			{name: "🤸 Activity", value: () => activityInput(person)},
+			{name: `👶 Age (${plan.people[person].age})`, value: () => ageInput(person)},
+			{name: `👫 Sex (${plan.people[person].sex == "female" ? "♀" : "♂"})`, value: () => sexInput(person)},
+			{name: `🦒 Height (${plan.people[person].height}cm)`, value: () => heightInput(person)},
+			{name: `🐘 Weight (${plan.people[person].weight}kg)`, value: () => weightInput(person)},
+			{name: `🏆 Goal (${plan.people[person].goal})`, value: () => goalInput(person)},
+			{name: `🤸 Activity (${plan.people[person].activity})`, value: () => activityInput(person)},
 			// {name: "🏷️ Tags", value: tagsInput}, // TODO
 			Select.separator("---"),
-			{name: "🗑️ Delete Person", value: () => { delete plan.people[person]; return peopleMenu() }},
+			{name: "🗑️  Delete Person", value: () => { delete plan.people[person]; return peopleMenu() }},
 		],
 	})
 	console.clear()
@@ -154,7 +145,7 @@ async function personMenu(person: PersonName): Promise<void> {
 }
 
 async function ageInput(person: PersonName): Promise<void> {
-	const age = await Number.prompt("Age (years)")
+	const age = await Number.prompt({message: `People ❭ ${person} ❭ Age (years)`, float: true})
 	if (age < 0 || 140 < age) { console.log("invalid age"); ageInput(person) }
 	plan.people[person].age = age
 	console.clear()
@@ -162,13 +153,13 @@ async function ageInput(person: PersonName): Promise<void> {
 }
 
 async function sexInput(person: PersonName): Promise<void> {
-	plan.people[person].sex = await Select.prompt({message: "sex", options: ["female", "male"]}) as Person["sex"]
+	plan.people[person].sex = await Select.prompt({message: `People ❭ ${person} ❭ sex`, options: ["female", "male"]}) as Person["sex"]
 	console.clear()
 	return personMenu(person)
 }
 
 async function heightInput(person: PersonName): Promise<void> {
-	const height = await Number.prompt("Height (cm)")
+	const height = await Number.prompt(`People ❭ ${person} ❭ Height (cm)`)
 	if (height < 12 || 272 < height) { console.log("invalid height"); heightInput(person) }
 	plan.people[person].height = height
 	console.clear()
@@ -176,7 +167,7 @@ async function heightInput(person: PersonName): Promise<void> {
 }
 
 async function weightInput(person: PersonName): Promise<void> {
-	const weight = await Number.prompt("Weight (kg)")
+	const weight = await Number.prompt({message: `People ❭ ${person} ❭ Weight (kg)`, float: true})
 	if (weight < 0 || 635 < weight) { console.log("invalid weight"); weightInput(person) }
 	plan.people[person].weight = weight
 	console.clear()
@@ -187,9 +178,9 @@ async function goalInput(person: PersonName): Promise<void> {
 	plan.people[person].goal = await Select.prompt({
 		message: "Goal",
 		options: [
-			{name: "📉 Lose weight", value: "lose"},
-			{name: "👉 Maintain weight", value: "maintain"},
-			{name: "📈 Gain weight", value: "gain"},
+			{name: "📉 Lose weight", value: "lose weight"},
+			{name: "👉 Maintain weight", value: "maintain weight"},
+			{name: "📈 Gain weight", value: "gain weight"},
 		]}
 	) as Person["goal"]
 	console.clear()
@@ -197,11 +188,11 @@ async function goalInput(person: PersonName): Promise<void> {
 }
 
 async function activityInput(person: PersonName): Promise<void> {
-	plan.people[person].activity = await Select.prompt({message: "activity", options: [
-		{name: "🛋️ Sedentary (little or no exercise)", value: "sedentary"},
+	plan.people[person].activity = await Select.prompt({message: `People ❭ ${person} ❭ activity`, options: [
+		{name: "🛋️  Sedentary (little or no exercise)", value: "sedentary"},
 		{name: "🚶 Light     (light exercise a few days a week)", value: "light"},
 		{name: "🏃 Moderate  (moderate exercise some days a week)", value: "moderate"},
-		{name: "🏋️ Intense   (hard exercise most days a week)", value: "very"},
+		{name: "🏋️  Intense   (hard exercise most days a week)", value: "intense"},
 		{name: "🥇 Athlete   (hard exercise and a physical job)", value: "athlete"},
 	]}) as Person["activity"]
 	console.clear()
@@ -216,8 +207,8 @@ async function daysMenu(): Promise<void> {
 		options: [
 			{name: "✅ Done", value: planMenu},
 			Select.separator("---"),
-			...Object.keys(plan.days).map(day => ({name: `📆 ${day}`, value: () => dayMenu(day)})),
 			{name: "➕ New Day", value: newDay},
+			...Object.keys(plan.days).sort().map(day => ({name: `📆 ${DateTime.fromISO(day).toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY)} (${Object.keys(plan.days[day]).length} meals)`, value: () => dayMenu(day)})),
 		],
 	})
 	console.clear()
@@ -227,11 +218,9 @@ async function daysMenu(): Promise<void> {
 async function newDay(): Promise<void> {
 	const name = await Input.prompt({info: true,
 		message: "Date (yyyy-mm-dd)",
-		default: DateTime.now().toISODate(),
 		suggestions: [
 			DateTime.now().toISODate(),
 		],
-		list: true,
 	})
 	const date = DateTime.fromISO(name) // parse the date
 	if (!date.isValid) { console.log(date.invalidExplanation); return newDay() }
@@ -245,14 +234,14 @@ async function newDay(): Promise<void> {
 
 async function dayMenu(day: DayName): Promise<void> {
 	const next = await Select.prompt({info: true,
-		message: day,
+		message: `Days ❭ ${DateTime.fromISO(day).toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY)}`,
 		options: [
 			{name: "✅ Done", value: daysMenu},
 			Select.separator("---"),
 			{name: "➕ New Meal", value: () => newMeal(day)},
-			...Object.keys(plan.days[day]).map(meal => ({name: `🕐 ${meal}`, value: () => mealMenu(day, meal)})),
+			...Object.keys(plan.days[day]).map(meal => ({name: `🕐 ${meal} (${Object.keys(plan.days[day][meal].dishes).length} dishes)`, value: () => mealMenu(day, meal)})),
 			Select.separator("---"),
-			{name: "🗑️ Delete Day", value: () => { delete plan.days[day]; return daysMenu() }},
+			{name: "🗑️  Delete Day", value: () => { delete plan.days[day]; return daysMenu() }},
 		],
 	})
 	console.clear()
@@ -260,15 +249,9 @@ async function dayMenu(day: DayName): Promise<void> {
 }
 
 async function newMeal(day: DayName): Promise<void> {
-	const name = await Input.prompt({info: true,
-		message: "Meal Name",
-		suggestions: [
-			"Breakfast",
-			"Lunch",
-			"Dinner",
-			"Snack",
-		],
-		list: true,
+	const name = await Input.prompt({
+		message: `Days ❭ ${DateTime.fromISO(day).toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY)} ❭ Meal Name`,
+		suggestions: ["Breakfast", "Lunch", "Dinner", "Snack"],
 	})
 	plan.days[day][name] = plan.days[day][name] ?? {dishes: []}
 	console.clear()
@@ -279,14 +262,14 @@ async function newMeal(day: DayName): Promise<void> {
 
 async function mealMenu(day: DayName, meal: MealName): Promise<void> {
 	const next = await Select.prompt({info: true,
-		message: meal,
+		message: `Days ❭ ${DateTime.fromISO(day).toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY)} ❭ ${meal}`,
 		options: [
 			{name: "✅ Done", value: () => dayMenu(day)},
 			Select.separator("---"),
-			...Object.keys(plan.days[day][meal].dishes).map(dish => ({name: `🍽️  ${dish}`, value: () => dishMenu(day, meal)})),
 			{name: "➕ Add Dish", value: () => addDishInMeal(day, meal)},
+			...Object.keys(plan.days[day][meal].dishes).map(dish => ({name: `🍽️  ${dish} (${plan.days[day][meal].dishes[dish].servings ?? 1} servings)`, value: () => dishInMealMenu(day, meal, dish)})),
 			Select.separator("---"),
-			{name: "🗑️ Delete Meal", value: () => { delete plan.days[day][meal]; return dayMenu(day) }},
+			{name: "🗑️  Delete Meal", value: () => { delete plan.days[day][meal]; return dayMenu(day) }},
 		],
 	})
 	console.clear()
@@ -295,12 +278,16 @@ async function mealMenu(day: DayName, meal: MealName): Promise<void> {
 
 async function addDishInMeal(day: DayName, meal: MealName): Promise<void> {
 	const dish = await Select.prompt({info: true,
-		message: "Select Dish",
+		message: `Days ❭ ${DateTime.fromISO(day).toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY)} ❭ ${meal} ❭ Select Dish`,
 		search: true,
 		options: [
 			{name: "❌ Cancel", value: null},
 			Select.separator("---"),
-			...Object.keys(plan.dishes).map(dish => ({name: `🍽️ ${dish}`, value: dish}))
+			...Object.keys(plan.dishes).map(dish => {
+				const percentage = plan.days[day][meal].dishes[dish]?.percentage
+				const servings = plan.days[day][meal].dishes[dish]?.servings
+				return {name: `🍽️  ${dish} (${servings ? servings + " servings" : percentage ? percentage * 100 + "%" : "dynamic"})`, value: dish}
+			})
 		],
 	})
 	if (dish) plan.days[day][meal].dishes[dish] = {}
@@ -311,12 +298,15 @@ async function addDishInMeal(day: DayName, meal: MealName): Promise<void> {
 // DISH IN MEAL
 
 async function dishInMealMenu(day: DayName, meal: MealName, dish: DishName): Promise<void> {
+	const percentage = plan.days[day][meal].dishes[dish].percentage
+	const servings = plan.days[day][meal].dishes[dish].servings
 	const next = await Select.prompt({info: true,
-		message: dish,
+		message: `Days ❭ ${DateTime.fromISO(day).toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY)} ❭ ${meal} ❭ ${dish}`,
 		options: [
 			{name: "✅ Done", value: () => mealMenu(day, meal)},
-			{name: "💯 Set Percentage", value: () => setDishInMealCaloriePercentage(day, meal, dish)},
-			{name: "🍰 Set Servings", value: () => setDishInMealServings(day, meal, dish)},
+			Select.separator("---"),
+			{name: `💯 Set Percentage (${servings ? "👇 by serving" : percentage ? percentage * 100 + "%" : "dynamic"})`, value: () => setDishInMealCaloriePercentage(day, meal, dish)},
+			{name: `🍰 Set Servings (${servings ? servings : percentage ? "👆 by percentage" : "dynamic"})`, value: () => setDishInMealServings(day, meal, dish)},
 			// TODO: people
 		],
 	})
@@ -325,17 +315,17 @@ async function dishInMealMenu(day: DayName, meal: MealName, dish: DishName): Pro
 }
 
 async function setDishInMealCaloriePercentage(day: DayName, meal: MealName, dish: DishName): Promise<void> {
-	const percentage = await Number.prompt("Percentage of Meal (by Calories) (0 will unset)")
+	const percentage = await Number.prompt({message: `Days ❭ ${DateTime.fromISO(day).toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY)} ❭ ${meal} ❭ ${dish} ❭ Percentage of Meal (by Calories) (0 will unset)`, float: true})
 	if (percentage < 0 || 100 < percentage) { console.log("invalid percentage"); setDishInMealCaloriePercentage(day, meal, dish) }
 	if (percentage == 0) delete plan.days[day][meal].dishes[dish].percentage
-	else plan.days[day][meal].dishes[dish].percentage = percentage
+	else plan.days[day][meal].dishes[dish].percentage = percentage / 100
 	// TODO: warn them if their percentages go over 100%
 	console.clear()
 	return dishInMealMenu(day, meal, dish)
 }
 
 async function setDishInMealServings(day: DayName, meal: MealName, dish: DishName): Promise<void> {
-	const servings = await Number.prompt("Servings (0 will unset)")
+	const servings = await Number.prompt({message: `Days ❭ ${DateTime.fromISO(day).toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY)} ❭ ${meal} ❭ ${dish} ❭ Servings (0 will unset)`, float: true})
 	if (servings < 0) { console.log("invalid servings"); setDishInMealServings(day, meal, dish) }
 	if (servings == 0) delete plan.days[day][meal].dishes[dish].servings
 	else plan.days[day][meal].dishes[dish].servings = servings
@@ -351,17 +341,16 @@ async function dishesMenu(): Promise<void> {
 		search: true,
 		options: [
 			{name: "✅ Done", value: planMenu},
-			{name: "➕ New Dish", value: newDish},
 			Select.separator("---"),
-			...Object.keys(plan.dishes).map(dish => ({name: `🍽️ ${dish}`, value: dishMenu})),
+			{name: "➕ New Dish", value: newDish},
+			...Object.keys(plan.dishes).map(dish => ({name: `🍽️  ${dish}`, value: () => dishMenu(dish)})),
 		],
 	})
 	console.clear()
 	return next()
 }
 
-// FIXME: link back to day & meal
-async function newDish(day?: DayName, meal?: MealName): Promise<void> {
+async function newDish(): Promise<void> {
 	const dish = await Input.prompt("Name")
 	plan.dishes[dish] = {ingredients: {}}
 	console.clear()
@@ -370,16 +359,15 @@ async function newDish(day?: DayName, meal?: MealName): Promise<void> {
 
 // DISH
 
-// FIXME: do the linking back to the meals in the days when we want to edit the dishes - maybe do it by a system of globals so it doesn't need to be passed everywhere
-async function dishMenu(dish: DishName, day?: DayName, meal?: MealName): Promise<void> {
+async function dishMenu(dish: DishName): Promise<void> {
 	// manage ingredients
 	const next = await Select.prompt({info: true,
-		message: dish,
+		message: `Dishes ❭ ${dish}`,
 		options: [
 			{name: "✅ Done", value: dishesMenu},
 			Select.separator("---"),
-			...Object.keys(plan.dishes[dish].ingredients).map(food => ({name: food, value: () => ingredientMenu(dish, food)})),
 			{name: "➕ Add Ingredient", value: () => addIngredient(dish)},
+			...Object.keys(plan.dishes[dish].ingredients).map(food => ({name: `🍎 ${food} (${plan.dishes[dish].ingredients[food].amount}✖️ ${plan.dishes[dish].ingredients[food].unit ?? "1 g"})`, value: () => ingredientMenu(dish, food)})),
 		],
 	})
 	console.clear()
@@ -388,12 +376,12 @@ async function dishMenu(dish: DishName, day?: DayName, meal?: MealName): Promise
 
 async function addIngredient(dish: DishName): Promise<void> {
 	const food = await Select.prompt({info: true,
-		message: "Select an Ingredient",
+		message: `Dishes ❭ ${dish} ❭ Add an Ingredient`,
 		search: true,
 		options: [
 			{name: "❌ Cancel", value: null},
 			Select.separator("---"),
-			...foods.map(food => ({name: food.name, value: food.name})),
+			...foods.map(food => ({name: `🍎 ${food.name}`, value: food.name})),
 		],
 	})
 	if (food) plan.dishes[dish].ingredients[food] = {amount: 0}
@@ -406,12 +394,14 @@ async function addIngredient(dish: DishName): Promise<void> {
 // TODO: make the setting of units and amounts less bad, maybe just do it all at once in one flow (and put it in the add part)
 async function ingredientMenu(dish: DishName, food: FoodName): Promise<void> {
 	const next = await Select.prompt({info: true,
-		message: `${food} in ${dish}`,
+		message: `Dishes ❭ ${dish} ❭ ${food}`,
 		options: [
 			{name: "✅ Done", value: () => dishMenu(dish)},
-			{name: "🍰 Set Unit", value: () => setIngredientUnit(dish, food)},
-			{name: "🔢 Set Amount", value: () => setIngredientAmount(dish, food)},
-			{name: "🗑️ Delete Ingredient", value: () => { delete plan.dishes[dish].ingredients[food] }},
+			Select.separator("---"),
+			{name: `🔢 Set Amount (${plan.dishes[dish].ingredients[food].amount})`, value: () => setIngredientAmount(dish, food)},
+			{name: `🍰 Set Unit (${plan.dishes[dish].ingredients[food].unit ?? "1 g"})`, value: () => setIngredientUnit(dish, food)},
+			Select.separator("---"),
+			{name: "🗑️  Delete Ingredient", value: () => { delete plan.dishes[dish].ingredients[food] }},
 		],
 	})
 	console.clear()
@@ -420,19 +410,20 @@ async function ingredientMenu(dish: DishName, food: FoodName): Promise<void> {
 
 async function setIngredientUnit(dish: DishName, food: FoodName): Promise<void> {
 	const unit = await Select.prompt({info: true,
-		message: `Unit of ${food} in ${dish}`,
+		message: `Dishes ❭ ${dish} ❭ ${food} ❭ Select Unit`,
 		options: [
-			{name: "grams", value: undefined},
+			{name: "1 g", value: null},
 			...Object.keys(foods.find(f => f.name == food)!.servings).map(serving => ({name: serving, value: serving})),
 		],
 	})
-	plan.dishes[dish].ingredients[food].unit = unit
+	if (unit) plan.dishes[dish].ingredients[food].unit = unit
+	else delete plan.dishes[dish].ingredients[food].unit
 	console.clear()
 	return ingredientMenu(dish, food)
 }
 
 async function setIngredientAmount(dish: DishName, food: FoodName): Promise<void> {
-	const amount = await Number.prompt(`Amount of ${food} in ${dish} by ${plan.dishes[dish].ingredients[food].unit ?? "grams"}`)
+	const amount = await Number.prompt({message: `Dishes ❭ ${dish} ❭ ${food} ❭ Set Amount of ${plan.dishes[dish].ingredients[food].unit ?? "1 g"}`, float: true})
 	if (amount < 0) { console.log("invalid amount"); setIngredientAmount(dish, food) }
 	plan.dishes[dish].ingredients[food].amount = amount
 	console.clear()
@@ -442,5 +433,21 @@ async function setIngredientAmount(dish: DishName, food: FoodName): Promise<void
 // TODO: show a table of the current level's data right above the prompt
 
 ////////////////////////////////////////////////////////////////////////////////
+// COMMAND
+////////////////////////////////////////////////////////////////////////////////
 
-main()
+await new Command()
+	.name("plan")
+	.version("0.1.0")
+	.description("Plan your meals, find your macros.")
+	.option("-o, --output <output>", "output file")
+	.arguments("[input]")
+	.action((options, ...args) => main(args[0], options.output))
+	.parse(Deno.args)
+
+async function main(input: string | undefined, output: string | undefined) {
+	if (input) plan = YAML.parse(Deno.readTextFileSync(input)) as Plan
+	await planMenu()
+	if (output) Deno.writeTextFileSync(output, YAML.stringify(plan))
+	else console.log(YAML.stringify(plan))
+}
