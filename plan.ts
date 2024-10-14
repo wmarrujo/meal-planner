@@ -1,80 +1,25 @@
 import * as NDJSON from "https://deno.land/x/ndjson@1.1.0/mod.ts";
-import {Command} from "jsr:@cliffy/command@1.0.0-rc.7";
 import {Input, Select, Number} from "jsr:@cliffy/prompt@1.0.0-rc.7";
-import * as YAML from "jsr:@std/yaml"
 import {DateTime} from "npm:luxon";
-
-////////////////////////////////////////////////////////////////////////////////
-// TYPES
-////////////////////////////////////////////////////////////////////////////////
-
-type Plan = {
-	people: Record<PersonName, Person>
-	days: Record<DayName, Record<MealName, Meal>>
-	dishes: Record<DishName, Dish>
-	foods: Record<FoodName, Food>
-}
-
-type PersonName = string
-type PersonTag = string
-type Person = {
-	age: number // in years
-	sex: "female" | "male" // based on metabolism
-	height: number // in cm
-	weight: number // in kg
-	goal: "lose weight" | "maintain weight" | "gain weight"
-	activity: "sedentary" | "light" | "moderate" | "intense" | "athlete"
-	tags?: Array<PersonTag> // tags allow grouping of people
-}
-
-type DayName = string // ISO Date string (YYYY-MM-DD)
-
-type MealName = string // Breakfast, Lunch, Dinner, Snack, Brunch, Second Breakfast, Elevensies, etc.
-type Meal = {
-	dishes: Record<DishName, {
-		percentage?: number // percentage of the meal this dish makes up, by calories (specify only this or servings)
-		servings?: number // specific number of servings this dish is made of for this meal (specify only this or percentage)
-		// people?: PersonName | Array<PersonName> | PersonTag | Array<PersonTag> // who does this dish (in these proportions) apply to (default is everyone in the meal)
-	}>
-	// TODO: people?: PersonName | Array<PersonName> | PersonTag | Array<PersonTag> // who does this meal (in these proportions) apply to (default is everyone)
-}
-
-type DishName = string
-type Dish = {
-	ingredients: Record<FoodName, { // the ingredients that make up 1 serving of this dish
-		unit?: string // how this food is measured ("servings" of this food)
-		amount: number // how many units of this food go into 1 serving of the dish
-	}>
-	// TODO: utensils
-	// TODO: instructions
-}
-
-type FoodName = string
-type Food = {
-	name: FoodName
-	category: string
-	calories: number // in kcal
-	water: number // in g
-	protein: number // in g
-	fat: number // in g
-	fiber: number // in g
-	carbohydrates: number // in g
-	sugar: number // in g
-	cholesterol: number // in mg
-	servings: Array<Record<string, number>>
-	energyDensity: number // kcal/g
-}
+import {Plan, PersonName, Person, DayName, MealName, DishName, FoodName, Food} from "./types.ts"
 
 ////////////////////////////////////////////////////////////////////////////////
 // DATA
 ////////////////////////////////////////////////////////////////////////////////
 
-const foods: Array<Food> = await NDJSON.readNdjson("./data/foods.ndjson")
+const foods = (await NDJSON.readNdjson("./data/foods.ndjson") as Array<Food & {name: string}>)
+	.reduce((acc, row) => { const {name: _, ...rest} = row; acc[row.name] = rest; return acc }, {} as Record<FoodName, Food>)
 let plan: Plan = {people: {}, days: {}, dishes: {}, foods: {}}
 
 ////////////////////////////////////////////////////////////////////////////////
 // PROMTS
 ////////////////////////////////////////////////////////////////////////////////
+
+export default async function main(existing?: Plan): Promise<Plan> {
+	if (existing) plan = existing
+	await planMenu()
+	return plan
+}
 
 // PLAN
 
@@ -308,6 +253,8 @@ async function dishInMealMenu(day: DayName, meal: MealName, dish: DishName): Pro
 			{name: `💯 Set Percentage (${servings ? "👇 by serving" : percentage ? percentage * 100 + "%" : "dynamic"})`, value: () => setDishInMealCaloriePercentage(day, meal, dish)},
 			{name: `🍰 Set Servings (${servings ? servings : percentage ? "👆 by percentage" : "dynamic"})`, value: () => setDishInMealServings(day, meal, dish)},
 			// TODO: people
+			Select.separator("---"),
+			{name: "🗑️  Delete Dish in Meal", value: () => { delete plan.days[day][meal].dishes[dish]; return addDishInMeal(day, meal) }},
 		],
 	})
 	console.clear()
@@ -381,7 +328,7 @@ async function addIngredient(dish: DishName): Promise<void> {
 		options: [
 			{name: "❌ Cancel", value: null},
 			Select.separator("---"),
-			...foods.map(food => ({name: `🍎 ${food.name}`, value: food.name})),
+			...Object.keys(foods).map(food => ({name: `🍎 ${food}`, value: food})),
 		],
 	})
 	if (food) plan.dishes[dish].ingredients[food] = {amount: 0}
@@ -413,7 +360,7 @@ async function setIngredientUnit(dish: DishName, food: FoodName): Promise<void> 
 		message: `Dishes ❭ ${dish} ❭ ${food} ❭ Select Unit`,
 		options: [
 			{name: "1 g", value: null},
-			...Object.keys(foods.find(f => f.name == food)!.servings).map(serving => ({name: serving, value: serving})),
+			...Object.keys(foods[food].servings).map(serving => ({name: serving, value: serving})),
 		],
 	})
 	if (unit) plan.dishes[dish].ingredients[food].unit = unit
@@ -428,26 +375,4 @@ async function setIngredientAmount(dish: DishName, food: FoodName): Promise<void
 	plan.dishes[dish].ingredients[food].amount = amount
 	console.clear()
 	return ingredientMenu(dish, food)
-}
-
-// TODO: show a table of the current level's data right above the prompt
-
-////////////////////////////////////////////////////////////////////////////////
-// COMMAND
-////////////////////////////////////////////////////////////////////////////////
-
-await new Command()
-	.name("plan")
-	.version("0.1.0")
-	.description("Plan your meals, find your macros.")
-	.option("-o, --output <output>", "output file")
-	.arguments("[input]")
-	.action((options, ...args) => main(args[0], options.output))
-	.parse(Deno.args)
-
-async function main(input: string | undefined, output: string | undefined) {
-	if (input) plan = YAML.parse(Deno.readTextFileSync(input)) as Plan
-	await planMenu()
-	if (output) Deno.writeTextFileSync(output, YAML.stringify(plan))
-	else console.log(YAML.stringify(plan))
 }
