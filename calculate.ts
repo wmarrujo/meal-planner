@@ -24,3 +24,7 @@ function setup(): Model {
 		constraints: {},
 	}
 }
+
+// Target Calories Equation from: https://healthyeater.com/how-to-calculate-your-macros
+// Target Protein Equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/7-5-estimating-protein-needs/
+// Target Carbohydrates Equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/carbohydrate-and-exercise/
