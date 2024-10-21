@@ -11,7 +11,10 @@ const config = {
 	},
 	kit: {
 		adapter: adapter(),
-		alias: {$routes: path.resolve("src/routes")},
+		alias: {
+			$routes: path.resolve("src/routes"),
+			$schema: path.resolve("./supabase/database.types.ts"),
+		},
 		paths: {base: process.env.NODE_ENV == "development" ? "" : "/meal-planner"}, // will be stored here in github pages
 	},
 }
