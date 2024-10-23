@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {base} from "$app/paths"
 	import {supabase} from "$lib/supabase"
+	import {invalidateAll} from "$app/navigation"
 	import * as y from "yup"
 	import {superForm, defaults, setError} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
@@ -24,7 +25,7 @@
 					// TODO: include redirect to people page
 				})
 				if (error) { toast.error("Failed to Sign Up"); setError(form, "Failed to Sign Up") }
-				else { toast.success("Registered! Check your E-Mail to Verify", {duration: Number.POSITIVE_INFINITY}) }
+				else toast.success("Registered! Check your E-Mail to Verify", {duration: Number.POSITIVE_INFINITY})
 			},
 		}), {form: signUpFormData, errors: signUpFormErrors} = signUpForm
 </script>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import {base} from "$app/paths"
-	import {goto} from "$app/navigation"
+	import {goto, invalidateAll} from "$app/navigation"
 	import {supabase} from "$lib/supabase"
 	import * as y from "yup"
 	import {superForm, defaults, setError} from "sveltekit-superforms"
@@ -10,6 +10,8 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
+	export let data
+	
 	const logInSchema = y.object({
 		email: y.string().email().required(),
 		password: y.string().required().min(16, "Password must be longer than 16 characters"),
@@ -17,6 +19,7 @@
 	
 	const logInForm = superForm(defaults(yup(logInSchema)), {SPA: true, validators: yup(logInSchema),
 			async onUpdate({form}) {
+				console.log("BLARGH!", form.valid)
 				if (!form.valid) { toast.error("Incorrect Log In Credentials"); return }
 				
 				const {error} = await supabase.auth.signInWithPassword({
@@ -24,13 +27,14 @@
 					password: form.data.password,
 				})
 				if (error) { toast.error("Incorrect Log In Credentials"); setError(form, "Incorrect Log In Credentials") }
-				else goto(`${base}/meals`)
+				else goto(`${base}/meals`, {invalidateAll: true}) // go to a logged in page & force the page to check the session, since it has been updated
 			},
 		}), {form: logInFormData, errors: logInFormErrors} = logInForm
 </script>
 
 <main class="flex flex-col max-w-96 gap-4 container my-20">
 	<!-- TODO: show that we are logged in, or redirect -->
+	{data.session?.user?.id}
 	<a href="{base}/" class="btn btn-ghost"><ArrowLeft />Back to Home</a>
 	<form use:logInForm.enhance class="flex flex-col gap-2">
 		<label for="email" class="input input-bordered flex items-center gap-2">

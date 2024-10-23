@@ -1,6 +1,6 @@
 import {createClient} from "@supabase/supabase-js"
 import type {Database} from "$schema"
-import {redirect} from "@sveltejs/kit"
+import {goto} from "$app/navigation"
 import {base} from "$app/paths"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -12,5 +12,5 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 export async function logOut() {
 	await supabase.auth.signOut()
-	redirect(302, base)
+	goto(`${base}/`, {invalidateAll: true}) // go to the home page and get a fresh session now that we've changed it
 }
