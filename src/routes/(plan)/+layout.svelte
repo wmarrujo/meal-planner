@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {base} from "$app/paths"
 	import {page} from "$app/stores"
+	import {logOut} from "$lib/supabase"
 </script>
 
 <div>
@@ -12,7 +13,11 @@
 			<li><a href="{base}/meals" class="btn btn-ghost {$page.route.id?.startsWith("/meals") && "underline"}">Meals</a></li>
 		</ul>
 		<div class="grow"></div>
-		<a href="{base}/login" class="btn btn-ghost">Log In</a>
+		{#if $page.data.session?.user}
+			<button onclick={logOut} class="btn btn-ghost">Log Out</button>
+		{:else}
+			<a href="{base}/signup" class="btn btn-ghost">Sign Up</a>
+		{/if}
 	</nav>
 	<main>
 		<slot />

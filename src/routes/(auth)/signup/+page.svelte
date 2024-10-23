@@ -5,7 +5,7 @@
 	import {superForm, defaults, setError} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
 	import {toast} from "svelte-sonner"
-	import {Mail, KeyRound, LogIn} from "lucide-svelte"
+	import {ArrowLeft, Mail, KeyRound, LogIn} from "lucide-svelte"
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
@@ -21,6 +21,7 @@
 				const {error} = await supabase.auth.signUp({
 					email: form.data.email,
 					password: form.data.password,
+					// TODO: include redirect to people page
 				})
 				if (error) { toast.error("Failed to Sign Up"); setError(form, "Failed to Sign Up") }
 				else { toast.success("Registered! Check your E-Mail to Verify", {duration: Number.POSITIVE_INFINITY}) }
@@ -29,6 +30,8 @@
 </script>
 
 <main class="flex flex-col max-w-96 gap-4 container my-20">
+	<!-- TODO: show that we are logged in, or redirect -->
+	<a href="{base}/" class="btn btn-ghost"><ArrowLeft />Back to Home</a>
 	<form use:signUpForm.enhance class="flex flex-col gap-2">
 		<label for="email" class="input input-bordered flex items-center gap-2 {$signUpFormErrors.email && "input-error"}">
 			<Mail />
@@ -42,6 +45,6 @@
 	</form>
 	<div class="flex gap-2">
 		<a href="{base}/login" class="btn flex-1">Log In</a>
-		<button class="btn flex-1" disabled={!$signUpFormData.email || Boolean($signUpFormErrors.email)}>Forgot Password</button>
+		<button class="btn flex-1">Try It Out</button>
 	</div>
 </main>
