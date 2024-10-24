@@ -2,10 +2,7 @@
 	import {base} from "$app/paths"
 	import {BookMarked, Coffee, Pickaxe} from "lucide-svelte"
 	import {logOut} from "$lib/supabase"
-	
-	////////////////////////////////////////////////////////////////////////////////
-	
-	export let data
+	import {page} from "$app/stores"
 </script>
 
 <div class="flex flex-col h-screen">
@@ -15,7 +12,7 @@
 			<h2 class="pt-4 text-xl">Calculate Macros | Prep Meals</h2>
 		</div>
 		<div class="flex justify-center gap-5">
-			{#if data.session?.user}
+			{#if $page.data.session?.user}
 				<a href="{base}/meals" class="btn btn-lg btn-primary">Go to Plan</a>
 				<button onclick={logOut} class="btn btn-lg btn-ghost">Log Out</button>
 			{:else}

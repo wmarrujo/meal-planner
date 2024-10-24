@@ -13,24 +13,21 @@ export type Database = {
         Row: {
           amount: number
           dish: number
-          meal_day: string
-          meal_name: string
+          meal: number
           restriction: Database["public"]["Enums"]["restriction"]
           unit: Database["public"]["Enums"]["unit"] | null
         }
         Insert: {
           amount?: number
           dish: number
-          meal_day: string
-          meal_name: string
+          meal: number
           restriction?: Database["public"]["Enums"]["restriction"]
           unit?: Database["public"]["Enums"]["unit"] | null
         }
         Update: {
           amount?: number
           dish?: number
-          meal_day?: string
-          meal_name?: string
+          meal?: number
           restriction?: Database["public"]["Enums"]["restriction"]
           unit?: Database["public"]["Enums"]["unit"] | null
         }
@@ -43,44 +40,53 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "components_meal_day_meal_name_fkey"
-            columns: ["meal_day", "meal_name"]
+            foreignKeyName: "components_meal_fkey"
+            columns: ["meal"]
             isOneToOne: false
             referencedRelation: "meals"
-            referencedColumns: ["day", "name"]
+            referencedColumns: ["id"]
           },
         ]
       }
       dishes: {
         Row: {
+          description: string
           id: number
+          locked: boolean
+          manager: string | null
           name: string
+          public: boolean
         }
         Insert: {
+          description?: string
           id?: number
+          locked?: boolean
+          manager?: string | null
           name: string
+          public?: boolean
         }
         Update: {
+          description?: string
           id?: number
+          locked?: boolean
+          manager?: string | null
           name?: string
+          public?: boolean
         }
         Relationships: []
       }
       eaters: {
         Row: {
           eater: number
-          meal_day: string
-          meal_name: string
+          meal: number
         }
         Insert: {
           eater: number
-          meal_day: string
-          meal_name: string
+          meal: number
         }
         Update: {
           eater?: number
-          meal_day?: string
-          meal_name?: string
+          meal?: number
         }
         Relationships: [
           {
@@ -91,11 +97,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "eaters_meal_day_meal_name_fkey"
-            columns: ["meal_day", "meal_name"]
-            isOneToOne: true
+            foreignKeyName: "eaters_meal_fkey"
+            columns: ["meal"]
+            isOneToOne: false
             referencedRelation: "meals"
-            referencedColumns: ["day", "name"]
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -115,11 +121,13 @@ export type Database = {
           fiber: number | null
           id: number
           iron: number | null
+          manager: string | null
           monounsaturated_fat: number | null
           name: string
           polyunsaturated_fat: number | null
           potassium: number | null
           protein: number | null
+          public: boolean
           saturated_fat: number | null
           sodium: number | null
           sub_brand: string | null
@@ -143,11 +151,13 @@ export type Database = {
           fiber?: number | null
           id?: number
           iron?: number | null
+          manager?: string | null
           monounsaturated_fat?: number | null
           name: string
           polyunsaturated_fat?: number | null
           potassium?: number | null
           protein?: number | null
+          public?: boolean
           saturated_fat?: number | null
           sodium?: number | null
           sub_brand?: string | null
@@ -171,11 +181,13 @@ export type Database = {
           fiber?: number | null
           id?: number
           iron?: number | null
+          manager?: string | null
           monounsaturated_fat?: number | null
           name?: string
           polyunsaturated_fat?: number | null
           potassium?: number | null
           protein?: number | null
+          public?: boolean
           saturated_fat?: number | null
           sodium?: number | null
           sub_brand?: string | null
@@ -183,6 +195,21 @@ export type Database = {
           trans_fat?: number | null
           upc?: string | null
           water?: number | null
+        }
+        Relationships: []
+      }
+      households: {
+        Row: {
+          id: number
+          name: string
+        }
+        Insert: {
+          id?: number
+          name: string
+        }
+        Update: {
+          id?: number
+          name?: string
         }
         Relationships: []
       }
@@ -232,26 +259,76 @@ export type Database = {
       meals: {
         Row: {
           amount: number
-          day: string
+          day: string | null
+          household: number
+          id: number
           name: string
           percent: boolean
           restriction: Database["public"]["Enums"]["restriction"] | null
+          time: string | null
         }
         Insert: {
           amount?: number
-          day: string
+          day?: string | null
+          household: number
+          id?: number
           name: string
           percent?: boolean
           restriction?: Database["public"]["Enums"]["restriction"] | null
+          time?: string | null
         }
         Update: {
           amount?: number
-          day?: string
+          day?: string | null
+          household?: number
+          id?: number
           name?: string
           percent?: boolean
           restriction?: Database["public"]["Enums"]["restriction"] | null
+          time?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "meals_household_fkey"
+            columns: ["household"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      members: {
+        Row: {
+          head: boolean
+          household: number
+          person: number
+        }
+        Insert: {
+          head?: boolean
+          household: number
+          person: number
+        }
+        Update: {
+          head?: boolean
+          household?: number
+          person?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "members_household_fkey"
+            columns: ["household"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_person_fkey"
+            columns: ["person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       people: {
         Row: {
@@ -326,7 +403,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cooperatives: {
+        Args: Record<PropertyKey, never>
+        Returns: number[]
+      }
+      my_households: {
+        Args: Record<PropertyKey, never>
+        Returns: number[]
+      }
+      my_households_headed: {
+        Args: Record<PropertyKey, never>
+        Returns: number[]
+      }
+      my_roommates: {
+        Args: Record<PropertyKey, never>
+        Returns: number[]
+      }
     }
     Enums: {
       restriction: "exactly" | "no_more_than" | "no_less_than"

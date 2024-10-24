@@ -1,7 +1,6 @@
 <script lang="ts">
 	import {base} from "$app/paths"
 	import {supabase} from "$lib/supabase"
-	import {invalidateAll} from "$app/navigation"
 	import * as y from "yup"
 	import {superForm, defaults, setError} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"

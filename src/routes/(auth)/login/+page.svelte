@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {base} from "$app/paths"
-	import {goto, invalidateAll} from "$app/navigation"
+	import {goto} from "$app/navigation"
+	import {page} from "$app/stores"
 	import {supabase} from "$lib/supabase"
 	import * as y from "yup"
 	import {superForm, defaults, setError} from "sveltekit-superforms"
@@ -9,8 +10,6 @@
 	import {ArrowLeft, Mail, KeyRound, LogIn} from "lucide-svelte"
 	
 	////////////////////////////////////////////////////////////////////////////////
-	
-	export let data
 	
 	const logInSchema = y.object({
 		email: y.string().email().required(),
@@ -34,7 +33,7 @@
 
 <main class="flex flex-col max-w-96 gap-4 container my-20">
 	<!-- TODO: show that we are logged in, or redirect -->
-	{data.session?.user?.id}
+	{$page.data.session?.user?.id}
 	<a href="{base}/" class="btn btn-ghost"><ArrowLeft />Back to Home</a>
 	<form use:logInForm.enhance class="flex flex-col gap-2">
 		<label for="email" class="input input-bordered flex items-center gap-2">
