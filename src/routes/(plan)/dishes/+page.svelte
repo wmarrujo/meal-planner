@@ -6,6 +6,7 @@
 	import {superForm, defaults, setMessage, setError} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
 	import {Plus, Trash} from "lucide-svelte"
+	import FoodPicker from "./food-picker.svelte"
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
@@ -106,7 +107,9 @@
 									</tr>
 								{/each}
 								<tr>
-									<td colspan={2}><button class="btn w-full"><Plus />Add</button></td>
+									<th><FoodPicker /></th>
+									<td></td>
+									<td colspan={2}><button class="btn"><Plus /></button></td>
 								</tr>
 							</tbody>
 						</table>

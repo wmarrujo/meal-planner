@@ -119,6 +119,7 @@ export type Database = {
           description: string | null
           fat: number | null
           fiber: number | null
+          generic: boolean
           id: number
           iron: number | null
           manager: string | null
@@ -149,6 +150,7 @@ export type Database = {
           description?: string | null
           fat?: number | null
           fiber?: number | null
+          generic?: boolean
           id?: number
           iron?: number | null
           manager?: string | null
@@ -179,6 +181,7 @@ export type Database = {
           description?: string | null
           fat?: number | null
           fiber?: number | null
+          generic?: boolean
           id?: number
           iron?: number | null
           manager?: string | null
@@ -418,6 +421,44 @@ export type Database = {
       my_roommates: {
         Args: Record<PropertyKey, never>
         Returns: number[]
+      }
+      search_generic_foods_by_name: {
+        Args: {
+          search: string
+          page_index: number
+          page_size: number
+        }
+        Returns: {
+          brand: string | null
+          by_volume: boolean
+          calcium: number | null
+          calories: number | null
+          carbohydrates: number | null
+          category: string | null
+          cholesterol: number | null
+          company: string | null
+          country: string | null
+          description: string | null
+          fat: number | null
+          fiber: number | null
+          generic: boolean
+          id: number
+          iron: number | null
+          manager: string | null
+          monounsaturated_fat: number | null
+          name: string
+          polyunsaturated_fat: number | null
+          potassium: number | null
+          protein: number | null
+          public: boolean
+          saturated_fat: number | null
+          sodium: number | null
+          sub_brand: string | null
+          sugar: number | null
+          trans_fat: number | null
+          upc: string | null
+          water: number | null
+        }[]
       }
     }
     Enums: {

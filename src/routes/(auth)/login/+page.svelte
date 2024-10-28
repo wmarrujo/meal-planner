@@ -18,7 +18,6 @@
 	
 	const logInForm = superForm(defaults(yup(logInSchema)), {SPA: true, validators: yup(logInSchema),
 			async onUpdate({form}) {
-				console.log("BLARGH!", form.valid)
 				if (!form.valid) { toast.error("Incorrect Log In Credentials"); return }
 				
 				const {error} = await supabase.auth.signInWithPassword({

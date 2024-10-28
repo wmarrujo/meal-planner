@@ -4,10 +4,14 @@ import typography from "@tailwindcss/typography"
 import daisyui from "daisyui"
 
 const config: Config = {
-	darkMode: ["class"],
 	content: ["./src/**/*.{html,js,svelte,ts}"],
 	safelist: ["dark"],
 	plugins: [typography, daisyui],
+	daisyui: {
+		themes: ["retro", "dracula"],
+		darkTheme: "dracula",
+	},
+	darkMode: ["class", "[data-theme=\"dracula\"]"],
 	theme: {
 		screens: { // these px values are ranges of "_px AND UP"
 			// nothing: phones in portrait
