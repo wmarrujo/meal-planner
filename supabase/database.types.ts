@@ -221,19 +221,19 @@ export type Database = {
           amount: number
           dish: number
           food: number
-          serving: number
+          serving: number | null
         }
         Insert: {
           amount: number
           dish: number
           food: number
-          serving: number
+          serving?: number | null
         }
         Update: {
           amount?: number
           dish?: number
           food?: number
-          serving?: number
+          serving?: number | null
         }
         Relationships: [
           {

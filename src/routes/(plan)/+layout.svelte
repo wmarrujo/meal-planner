@@ -2,6 +2,10 @@
 	import {base} from "$app/paths"
 	import {page} from "$app/stores"
 	import {logOut} from "$lib/supabase"
+	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	let {children} = $props()
 </script>
 
 <div>
@@ -19,7 +23,5 @@
 			<a href="{base}/signup" class="btn btn-ghost">Sign Up</a>
 		{/if}
 	</nav>
-	<main>
-		<slot />
-	</main>
+	{@render children()}
 </div>

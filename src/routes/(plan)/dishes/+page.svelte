@@ -1,12 +1,12 @@
 <script lang="ts">
 	import {supabase} from "$lib/supabase"
-	import {page} from "$app/stores"
 	import {onMount} from "svelte"
 	import * as y from "yup"
 	import {superForm, defaults, setMessage, setError} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
-	import {Plus, Trash} from "lucide-svelte"
+	import {Plus, Trash, X} from "lucide-svelte"
 	import FoodPicker from "./food-picker.svelte"
+	import {toast} from "svelte-sonner"
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
@@ -22,7 +22,7 @@
 			amount_of_unit: number,
 			unit: string | null,
 			modifier: string | null,
-		}
+		} | null
 		amount: number
 	}
 	
@@ -46,7 +46,7 @@
 	async function populateIngredients(dish: Dish) {
 		const {data, error} = await supabase
 			.from("ingredients")
-			.select("food:foods!inner(id, name, by_volume), serving:servings!inner(id, amount_of_unit, unit, modifier), amount")
+			.select("food:foods!inner(id, name, by_volume), serving:servings(id, amount_of_unit, unit, modifier), amount")
 			.eq("dish", dish.id)
 		if (error) { console.error("Error in getting dishes:", error); return }
 		dish.ingredients = data
@@ -64,76 +64,121 @@
 				
 				const {error} = await supabase
 					.from("dishes")
-					.insert({name: form.data.name, manager: $page.data.session?.user?.id})
+					.insert({name: form.data.name})
 				if (error) setError(form, "Error in inserting dish.")
-				else setMessage(form, "Inserted Dish.")
+				else setMessage(form, "Inserted dish.")
 			},
 		}), {form: newDishFormData} = newDishForm
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	let dialogs: Record<number, HTMLDialogElement> = $state({})
+	const newIngredientSchema = y.object({
+		dish: y.number().required(),
+		food: y.number().required(),
+	})
+	
+	const newIngredientForm = superForm(defaults(yup(newIngredientSchema)), {SPA: true, validators: yup(newIngredientSchema),
+			async onUpdate({form}) {
+				if (!form.valid || !selected) return
+				
+				const {data, error} = await supabase
+					.from("ingredients")
+					.insert({
+						dish: selected.id,
+						food: form.data.food,
+						serving: null,
+						amount: 0,
+					})
+					.select("food:foods!inner(id, name, by_volume), serving:servings(id, amount_of_unit, unit, modifier), amount")
+					.single()
+				if (error) { console.error("Error in inserting ingredient:", error); setError(form, "Error in inserting ingredient."); toast.error("Failed to insert ingredient.") }
+				else {
+					setMessage(form, "Inserted ingredient.")
+					dishes[form.data.dish].ingredients!.push(data)
+				}
+			},
+		}), {form: newIngredientFormData} = newIngredientForm
+	
+	async function removeIngredient(dish: number, food: number) {
+		const {error} = await supabase
+			.from("ingredients")
+			.delete()
+			.eq("dish", dish)
+			.eq("food", food)
+		if (error) { console.error("Error deleting data:", error); toast.error("Failed to remove ingredient."); return }
+		const affected = dishes.find(d => d.id == dish)!
+		affected.ingredients = affected.ingredients!.filter(ingredient => ingredient.food.id != food)
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	let selected: Dish | undefined = $state(undefined) // the dish that is currently selected. undefined will show the "add dish" ui
 </script>
 
-<div class="flex gap-4 p-4">
-	{#each dishes as dish (dish.id)}
-		<button onclick={() => { dialogs[dish.id].showModal(); populateIngredients(dish) }} class="card glass w-64 shadow-xl">
-			<div class="card-body">
-				<div class="card-title">
-					<h2 class="card-title">{dish.name}</h2>
+<main class="flex h-[calc(100vh-4rem)]">
+	<div class="flex gap-4 p-4 grow overflow-y-scroll">
+		<!-- TODO: make a search bar -->
+		{#each dishes as dish (dish.id)}
+			<button onclick={() => { selected = dish; populateIngredients(dish) }} class="card bg-base-300 text-base-content w-64 shadow-xl h-min">
+				<div class="card-body">
+					<div class="card-title">
+						<h2 class="card-title">{dish.name}</h2>
+					</div>
 				</div>
-			</div>
-		</button>
-		<dialog class="modal" bind:this={dialogs[dish.id]}>
-			<div class="modal-box">
-				<h2 class="text-lg font-bold">{dish.name}</h2>
-				<div>
-					<h3 class="font-bold py-2">Ingredients</h3>
-					{#if dish.ingredients}
-						<table class="table table-pin-rows">
-							<thead>
-								<tr>
-									<th>Food</th>
-									<th>Amount</th>
-									<th></th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each dish.ingredients as ingredient (ingredient.food)}
-									<tr>
-										<th>{ingredient.food}</th>
-										<td>{ingredient.amount} {ingredient.serving.unit} {ingredient.serving.modifier}</td>
-										<td><button class="btn"><Trash /></button></td>
-									</tr>
-								{/each}
-								<tr>
-									<th><FoodPicker /></th>
-									<td></td>
-									<td colspan={2}><button class="btn"><Plus /></button></td>
-								</tr>
-							</tbody>
-						</table>
-					{:else}
-						<div class="flex flex-col gap-2">
-							<div class="skeleton w-full h-8"></div>
-							<div class="skeleton w-full h-8"></div>
-							<div class="skeleton w-full h-8"></div>
-							<div class="skeleton w-full h-8"></div>
-						</div>
-					{/if}
-				</div>
-				<div class="modal-action">
-					<form method="dialog">
-						<button class="btn">Close</button>
-					</form>
-				</div>
-			</div>
-		</dialog>
-	{/each}
-	<div class="card glass w-64 shadow-xl">
-		<form class="card-body" use:newDishForm.enhance>
-			<input type="text" name="name" bind:value={$newDishFormData.name} placeholder="Name" class="input input-bordered">
-			<button class="btn" type="submit" disabled={!$newDishFormData.name}><Plus />Add New Dish</button>
-		</form>
+			</button>
+		{/each}
 	</div>
-</div>
+	<div class="relative tablet:w-1/2 laptop:w-1/3 p-4 overflow-y-scroll flex flex-col">
+		{#if selected}
+			<div class="flex">
+				<h2 class="text-4xl font-bold grow">{selected.name}</h2>
+				<button onclick={() => selected = undefined} class="btn btn-square"><X /></button>
+			</div>
+			
+			<!-- TODO: make a place to toggle the dish public vs private -->
+			<!-- TODO: make a view that shows the detailed nutritional breakdown -->
+			
+			<h3 class="text-2xl py-2 self-center">Ingredients</h3>
+			{#if selected.ingredients}
+				<table class="table table-pin-rows">
+					<thead>
+						<tr>
+							<th>Food</th>
+							<th>Amount</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each selected.ingredients as ingredient (ingredient.food)}
+							<tr>
+								<th>{ingredient.food.name}</th>
+								<td>{ingredient.amount} {ingredient.serving?.unit} {ingredient.serving?.modifier}</td>
+								<td><button onclick={() => removeIngredient(selected!.id, ingredient.food.id)} class="btn btn-square hover:bg-error"><Trash /></button></td>
+							</tr>
+						{/each}
+						<tr>
+							<th><FoodPicker bind:value={$newIngredientFormData.food} name="food" form="new-ingredient-form" /></th>
+							<td></td>
+							<td>
+								<button type="submit" class="btn btn-square" form="new-ingredient-form"><Plus /></button>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<form id="new-ingredient-form" use:newIngredientForm.enhance></form>
+			{:else}
+				<div class="flex flex-col gap-2">
+					<div class="skeleton w-full h-8"></div>
+					<div class="skeleton w-full h-8"></div>
+					<div class="skeleton w-full h-8"></div>
+					<div class="skeleton w-full h-8"></div>
+				</div>
+			{/if}
+		{:else}
+			<form use:newDishForm.enhance class="flex flex-col gap-2 items-center">
+				<input type="text" name="name" bind:value={$newDishFormData.name} placeholder="Name" class="input input-bordered">
+				<button class="btn" type="submit" disabled={!$newDishFormData.name}><Plus />Add New Dish</button>
+			</form>
+		{/if}
+	</div>
+</main>
