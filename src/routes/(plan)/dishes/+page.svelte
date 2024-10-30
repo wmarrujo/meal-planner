@@ -13,22 +13,28 @@
 	type Dish = {id: number, name: string, ingredients: Array<Ingredient> | null}
 	type Ingredient = {
 		food: {
-			id: number,
-			name: string,
-			by_volume: boolean,
+			id: number
+			name: string
+			by_volume: boolean
 		}
-		serving: {
-			id: number,
-			amount_of_unit: number,
-			unit: string | null,
-			modifier: string | null,
-		} | null
 		amount: number
+		serving: {
+			id: number
+			amount_of_unit: number
+			unit: string | null
+			modifier: string | null
+		} | null
+		servingOptions?: Array<{
+			id: number
+			amount_of_unit: number
+			unit: string | null
+			modifier: string | null
+		}>
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	let dishes: Array<Dish> = $state([])
+	let dishes: Record<number, Dish> = $state({})
 	
 	onMount(async () => {
 		const {data: dishesData, error: dishesError} = await supabase
@@ -36,20 +42,30 @@
 			.select("id, name")
 		if (dishesError) { console.error("Error in getting dishes:", dishesError); return }
 		
-		dishes = dishesData.map(dish => ({
-			id: dish.id,
-			name: dish.name,
-			ingredients: null,
-		}))
+		dishes = dishesData.reduce((acc, dish) => {
+			acc[dish.id] = {
+				id: dish.id,
+				name: dish.name,
+				ingredients: null,
+			}
+			return acc
+		}, {} as Record<number, Dish>)
 	})
 	
 	async function populateIngredients(dish: Dish) {
-		const {data, error} = await supabase
+		const {data: ingredientsData, error: ingredientsError} = await supabase
 			.from("ingredients")
 			.select("food:foods!inner(id, name, by_volume), serving:servings(id, amount_of_unit, unit, modifier), amount")
 			.eq("dish", dish.id)
-		if (error) { console.error("Error in getting dishes:", error); return }
-		dish.ingredients = data
+		if (ingredientsError) { console.error("Error in getting dishes:", ingredientsError); return }
+		dish.ingredients = ingredientsData
+		
+		const {data: servingsData, error: servingsError} = await supabase
+			.from("servings")
+			.select("food, id, amount_of_unit, unit, modifier")
+			.in("food", ingredientsData.map(ingredient => ingredient.food.id))
+		if (servingsError) { console.error("Error populating servings:", servingsError) }
+		dish.ingredients.forEach(ingredient => ingredient.servingOptions = (servingsData ?? []).filter(serving => serving.food == ingredient.food.id))
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -73,7 +89,6 @@
 	////////////////////////////////////////////////////////////////////////////////
 	
 	const newIngredientSchema = y.object({
-		dish: y.number().required(),
 		food: y.number().required(),
 	})
 	
@@ -94,7 +109,7 @@
 				if (error) { console.error("Error in inserting ingredient:", error); setError(form, "Error in inserting ingredient."); toast.error("Failed to insert ingredient.") }
 				else {
 					setMessage(form, "Inserted ingredient.")
-					dishes[form.data.dish].ingredients!.push(data)
+					selected.ingredients!.push(data)
 				}
 			},
 		}), {form: newIngredientFormData} = newIngredientForm
@@ -106,8 +121,29 @@
 			.eq("dish", dish)
 			.eq("food", food)
 		if (error) { console.error("Error deleting data:", error); toast.error("Failed to remove ingredient."); return }
-		const affected = dishes.find(d => d.id == dish)!
-		affected.ingredients = affected.ingredients!.filter(ingredient => ingredient.food.id != food)
+		dishes[dish].ingredients = dishes[dish].ingredients!.filter(ingredient => ingredient.food.id != food)
+	}
+	
+	async function setIngredientAmount(dish: number, food: number, amount: number) {
+		const {error} = await supabase
+			.from("ingredients")
+			.update({amount})
+			.eq("dish", dish)
+			.eq("food", food)
+		if (error) { console.error("Error updating ingredient amount:", error); toast.error("Failed to update ingredient amount."); return }
+		dishes[dish].ingredients!.find(ingredient => ingredient.food.id == food)!.amount = amount
+	}
+	
+	// TODO: make it reactive
+	async function setIngredientServing(dish: number, food: number, serving: number | null) {
+		const {error} = await supabase
+			.from("ingredients")
+			.update({serving})
+			.eq("dish", dish)
+			.eq("food", food)
+		if (error) { console.error("Error updating ingredient amount:", error); toast.error("Failed to update ingredient amount."); return }
+		dishes[dish].ingredients!.find(ingredient => ingredient.food.id == food)!.serving =
+			serving ? ((dishes[dish].ingredients!.find(ingredient => ingredient.food.id == food)!.servingOptions ?? []).find(s => s.id = serving) ?? null) : null
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -118,7 +154,7 @@
 <main class="flex h-[calc(100vh-4rem)]">
 	<div class="flex gap-4 p-4 grow overflow-y-scroll">
 		<!-- TODO: make a search bar -->
-		{#each dishes as dish (dish.id)}
+		{#each Object.values(dishes) as dish (dish.id)}
 			<button onclick={() => { selected = dish; populateIngredients(dish) }} class="card bg-base-300 text-base-content w-64 shadow-xl h-min">
 				<div class="card-body">
 					<div class="card-title">
@@ -140,7 +176,7 @@
 			
 			<h3 class="text-2xl py-2 self-center">Ingredients</h3>
 			{#if selected.ingredients}
-				<table class="table table-pin-rows">
+				<table class="table table-pin-rows w-full">
 					<thead>
 						<tr>
 							<th>Food</th>
@@ -152,7 +188,23 @@
 						{#each selected.ingredients as ingredient (ingredient.food)}
 							<tr>
 								<th>{ingredient.food.name}</th>
-								<td>{ingredient.amount} {ingredient.serving?.unit} {ingredient.serving?.modifier}</td>
+								<td class="text-nowrap">
+									<div class="flex">
+										<input type="number" value={ingredient.amount} onchange={event => setIngredientAmount(selected!.id, ingredient.food.id, Number(event.currentTarget.value))} class="input px-0 text-center text-lg w-12">
+										<div class="dropdown">
+											<div role="button" tabindex={0} class="btn btn-ghost outline-none flex flex-nowrap">
+												<span>{ingredient.serving ? ingredient.serving.unit : (ingredient.food.by_volume ? "ml" : "g")}</span>
+												{#if ingredient.serving?.modifier}<span class="opacity-50">ingredient.serving?.modifier</span>{/if}
+											</div>
+											<ul class="dropdown-content menu bg-base-300 z-10 w-full rounded-b-lg p-0">
+												<li><button onclick={() => setIngredientServing(selected!.id, ingredient.food.id, null)}>{ingredient.food.by_volume ? "ml" : "g"}</button></li>
+												{#each ingredient.servingOptions ?? [] as serving (serving.id)}
+													<li><button onclick={() => setIngredientServing(selected!.id, ingredient.food.id, serving.id)}>{serving.unit}</button></li>
+												{/each}
+											</ul>
+										</div>
+									</div>
+								</td>
 								<td><button onclick={() => removeIngredient(selected!.id, ingredient.food.id)} class="btn btn-square hover:bg-error"><Trash /></button></td>
 							</tr>
 						{/each}
