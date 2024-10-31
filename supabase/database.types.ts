@@ -14,21 +14,21 @@ export type Database = {
           amount: number
           dish: number
           meal: number
-          restriction: Database["public"]["Enums"]["restriction"]
+          restriction: Database["public"]["Enums"]["restriction"] | null
           unit: Database["public"]["Enums"]["unit"] | null
         }
         Insert: {
           amount?: number
           dish: number
           meal: number
-          restriction?: Database["public"]["Enums"]["restriction"]
+          restriction?: Database["public"]["Enums"]["restriction"] | null
           unit?: Database["public"]["Enums"]["unit"] | null
         }
         Update: {
           amount?: number
           dish?: number
           meal?: number
-          restriction?: Database["public"]["Enums"]["restriction"]
+          restriction?: Database["public"]["Enums"]["restriction"] | null
           unit?: Database["public"]["Enums"]["unit"] | null
         }
         Relationships: [
