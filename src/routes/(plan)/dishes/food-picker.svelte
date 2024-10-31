@@ -8,7 +8,7 @@
 	
 	type Option = {id: number, name: string}
 	
-	let {selected = $bindable(), value = $bindable(), name, form}: {selected?: Option, value?: number, name?: string, form?: string} = $props()
+	let {selected = $bindable(), value = $bindable(), name, form, class: customClasses}: {selected?: Option, value?: number, name?: string, form?: string, class: string} = $props()
 	
 	let options: Array<Option> = $state([])
 	
@@ -28,7 +28,7 @@
 	}
 </script>
 
-<div class="relative">
+<div class="relative {customClasses}">
 	<!-- TODO: put a button in front that shows the name, then when you click it it hides and shows the text input underneath, then when you get out of the text input it shows again -->
 	<label class="input input-bordered flex items-center gap-2 pr-2">
 		<input
@@ -53,6 +53,7 @@
 				<li use:combobox.item={{value: option}} class="p-2 hover:bg-primary hover:text-primary-content cursor-pointer rounded-md">
 					{option.name}
 				</li>
+				<!-- TODO: add pagination -->
 			{:else}
 				<li class="p-2">
 					No items

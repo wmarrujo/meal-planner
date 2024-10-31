@@ -4,7 +4,7 @@
 	import * as y from "yup"
 	import {superForm, defaults, setMessage, setError} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
-	import {Plus, Trash, X} from "lucide-svelte"
+	import {Plus, X} from "lucide-svelte"
 	import FoodPicker from "./food-picker.svelte"
 	import {toast} from "svelte-sonner"
 	
@@ -168,7 +168,7 @@
 		{#if selected}
 			<div class="flex">
 				<h2 class="text-4xl font-bold grow">{selected.name}</h2>
-				<button onclick={() => selected = undefined} class="btn btn-square"><X /></button>
+				<button onclick={() => selected = undefined} class="btn btn-square btn-sm"><X /></button>
 			</div>
 			
 			<!-- TODO: make a place to toggle the dish public vs private -->
@@ -179,16 +179,18 @@
 				<table class="table table-pin-rows w-full">
 					<thead>
 						<tr>
-							<th>Food</th>
-							<th>Amount</th>
-							<th></th>
+							<th class="px-1">Food</th>
+							<th class="px-1 text-center">Amount</th>
+							<th class="px-1"></th>
 						</tr>
 					</thead>
 					<tbody>
 						{#each selected.ingredients as ingredient (ingredient.food)}
-							<tr>
-								<th>{ingredient.food.name}</th>
-								<td class="text-nowrap">
+							<tr class="group">
+								<th class="p-1">
+									<span class="grow">{ingredient.food.name}</span>
+								</th>
+								<td class="text-nowrap p-1">
 									<div class="flex">
 										<input type="number" value={ingredient.amount} onchange={event => setIngredientAmount(selected!.id, ingredient.food.id, Number(event.currentTarget.value))} class="input px-0 text-center text-lg w-12">
 										<div class="dropdown">
@@ -205,14 +207,17 @@
 										</div>
 									</div>
 								</td>
-								<td><button onclick={() => removeIngredient(selected!.id, ingredient.food.id)} class="btn btn-square hover:bg-error"><Trash /></button></td>
+								<td class="p-1">
+									<button onclick={() => removeIngredient(selected!.id, ingredient.food.id)} class="btn btn-sm btn-square hover:bg-error invisible group-hover:visible"><X /></button>
+								</td>
 							</tr>
 						{/each}
 						<tr>
-							<th><FoodPicker bind:value={$newIngredientFormData.food} name="food" form="new-ingredient-form" /></th>
-							<td></td>
-							<td>
-								<button type="submit" class="btn btn-square" form="new-ingredient-form"><Plus /></button>
+							<td colspan={3}>
+								<div class="flex gap-2">
+									<FoodPicker bind:value={$newIngredientFormData.food} name="food" form="new-ingredient-form" class="grow" />
+									<button type="submit" class="btn btn-square" form="new-ingredient-form"><Plus /></button>
+								</div>
 							</td>
 						</tr>
 					</tbody>
