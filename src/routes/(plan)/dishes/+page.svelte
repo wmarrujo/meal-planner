@@ -78,11 +78,20 @@
 			async onUpdate({form}) {
 				if (!form.valid) return
 				
-				const {error} = await supabase
+				const {data, error} = await supabase
 					.from("dishes")
 					.insert({name: form.data.name})
-				if (error) setError(form, "Error in inserting dish.")
-				else setMessage(form, "Inserted dish.")
+					.select("id, name")
+					.single()
+				if (error) { console.error("Error in inserting dish:", error); setError(form, "Error in inserting dish."); toast.error("Failed to insert dish.") }
+				else {
+					setMessage(form, "Inserted dish.")
+					dishes[data.id] = {
+						id: data.id,
+						name: data.name,
+						ingredients: null,
+					}
+				}
 			},
 		}), {form: newDishFormData} = newDishForm
 	
@@ -134,7 +143,6 @@
 		dishes[dish].ingredients!.find(ingredient => ingredient.food.id == food)!.amount = amount
 	}
 	
-	// TODO: make it reactive
 	async function setIngredientServing(dish: number, food: number, serving: number | null) {
 		const {error} = await supabase
 			.from("ingredients")
