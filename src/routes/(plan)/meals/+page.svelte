@@ -77,6 +77,10 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
+	async function addMeal(name: string) {
+		// TODO: implement
+	}
+	
 	async function toggleMealRestriction(meal: number, existingRestriction: string | null) {
 		const newRestriction // ||: unrestricted, =, <=, >= :||
 			= !existingRestriction ? "exactly"
@@ -111,7 +115,24 @@
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
-	async function toggleComponentRestriction(meal: number, component: number, existingRestriction: string | null) {
+	
+	async function removeMeal(meal: number) {
+		// TODO: add an "are you sure?" check
+		// TODO: add a soft-delete
+		const {error} = await supabase
+			.from("meals")
+			.delete()
+			.eq("id", meal)
+		if (error) { console.error("Error in removing meal:", error); toast.error("Error in removing meal."); return }
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	async function addComponent(meal: number, dish: number) {
+		// TODO: implement
+	}
+	
+	async function toggleComponentRestriction(meal: number, dish: number, existingRestriction: string | null) {
 		const newRestriction // ||: unrestricted, =, <=, >= :||
 			= !existingRestriction ? "exactly"
 				: existingRestriction == "exactly" ? "no_more_than"
@@ -121,39 +142,50 @@
 			.from("components")
 			.update({restriction: newRestriction})
 			.eq("meal", meal)
-			.eq("dish", component)
+			.eq("dish", dish)
 		if (error) { console.error("Error in setting meal component restriction:", error); toast.error("Error in setting meal component restriction."); return }
-		meals[meal].components[component].restriction = newRestriction
+		meals[meal].components[dish].restriction = newRestriction
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
-	async function setComponentRestrictionAmount(meal: number, component: number, amount: number) {
+	async function setComponentRestrictionAmount(meal: number, dish: number, amount: number) {
 		const {error} = await supabase
 			.from("components")
 			.update({amount})
 			.eq("meal", meal)
-			.eq("dish", component)
+			.eq("dish", dish)
 		if (error) { console.error("Error in setting meal component restriction amount:", error); toast.error("Error in setting meal component restriction amount."); return }
-		meals[meal].components[component].amount = amount
+		meals[meal].components[dish].amount = amount
 	}
 	
-	async function toggleComponentRestrictionPercent(meal: number, component: number, percent: boolean | null) {
+	async function toggleComponentRestrictionPercent(meal: number, dish: number, percent: boolean | null) {
 		const newPercent // ||: serving, %, kcal :||
 			= percent === null ? true : percent ? false : null
 		const {error} = await supabase
 			.from("components")
 			.update({percent: newPercent})
 			.eq("meal", meal)
-			.eq("dish", component)
+			.eq("dish", dish)
 		if (error) { console.error("Error in setting meal component restriction percent:", error); toast.error("Error in setting meal component restriction percent."); return }
-		meals[meal].components[component].percent = newPercent
+		meals[meal].components[dish].percent = newPercent
 		// TODO: eventually, to protect against people spamming this, add some throttling
+	}
+	
+	async function removeComponent(meal: number, dish: number) {
+		// TODO: add an "are you sure?" check
+		// TODO: add a soft-delete
+		const {error} = await supabase
+			.from("components")
+			.delete()
+			.eq("meal", meal)
+			.eq("dish", dish)
+		if (error) { console.error("Error in removing meal component:", error); toast.error("Error in removing meal component."); return }
 	}
 </script>
 
-<main class="flex flex-col">
+<main class="flex flex-col overflow-x-scroll">
 	{#each days as day (day)}
-		<div class="flex border-t overflow-x-scroll">
+		<div class="flex border-t">
 			<div class="flex border-r p-2 min-w-14 justify-center">
 				<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(new Date(day))}</span>
 			</div>
@@ -180,7 +212,7 @@
 								kcal
 							{/if}
 						</button>
-						<button class="btn btn-square btn-sm invisible group-hover:visible hover:bg-error"><X /></button>
+						<button onclick={() => removeMeal(meal.id)} class="btn btn-square btn-sm invisible group-hover:visible hover:bg-error"><X /></button>
 					</div>
 					<div class="grid grid-cols-[1fr_repeat(4,auto)] group/components gap-2 pl-4">
 						{#each Object.values(meal.components) as component (component.dish)}
@@ -206,20 +238,25 @@
 									kcal
 								{/if}
 							</button>
-							<button class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><X /></button>
+							<button onclick={() => removeComponent(meal.id, component.dish.id)} class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><X /></button>
 						{/each}
+					</div>
+					<div class="flex gap-2 m-2">
+						<!-- TODO: make a dish-picker component -->
+						<input placeholder="Add Dish" class="input input-bordered grow" />
+						<button class="btn btn-square"><Plus /></button>
 					</div>
 				</div>
 			{/each}
-			<div class="p-2 flex items-center">
-				<!-- TODO: input name -->
-				<button class="btn"><Plus />Add Meal</button>
+			<div class="p-2 flex items-center gap-2">
+				<button class="btn"><Plus /></button>
+				<input type="text" placeholder="Name" class="input input-bordered" />
 			</div>
 		</div>
 	{/each}
 	<div class="flex border-t">
-		<div class="min-w-14 border-r p-2 flex justify-center">
-			<button class="btn btn-square btn-sm"><Plus /></button>
+		<div class="min-w-14 border-r py-1 flex justify-center">
+			<button class="btn btn-square"><Plus /></button>
 		</div>
 	</div>
 </main>
