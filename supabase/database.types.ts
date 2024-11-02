@@ -14,22 +14,22 @@ export type Database = {
           amount: number
           dish: number
           meal: number
+          percent: boolean | null
           restriction: Database["public"]["Enums"]["restriction"] | null
-          unit: Database["public"]["Enums"]["unit"] | null
         }
         Insert: {
           amount?: number
           dish: number
           meal: number
+          percent?: boolean | null
           restriction?: Database["public"]["Enums"]["restriction"] | null
-          unit?: Database["public"]["Enums"]["unit"] | null
         }
         Update: {
           amount?: number
           dish?: number
           meal?: number
+          percent?: boolean | null
           restriction?: Database["public"]["Enums"]["restriction"] | null
-          unit?: Database["public"]["Enums"]["unit"] | null
         }
         Relationships: [
           {
@@ -463,7 +463,6 @@ export type Database = {
     }
     Enums: {
       restriction: "exactly" | "no_more_than" | "no_less_than"
-      unit: "kcal" | "g_or_ml" | "percent"
     }
     CompositeTypes: {
       [_ in never]: never
