@@ -3,7 +3,7 @@
 	import {supabase} from "$lib/supabase"
 	import {toast} from "svelte-sonner"
 	import type {Enums} from "$schema"
-	import {Plus} from "lucide-svelte"
+	import {Plus, LockOpen, Equal, ChevronLeft, ChevronRight} from "lucide-svelte"
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
@@ -77,7 +77,37 @@
 			</div>
 			{#each Object.values(meals).filter(meal => meal.day == day).sort((a, b) => (String(a.time)).localeCompare(String(b.time))) as meal (meal.id)}
 				<div class="p-2 border-r border-dotted">
-					{meal.name}
+					<div class="flex items-center gap-2">
+						<input type="text" value={meal.name} class="input text-xl p-1" />
+						<button class="btn btn-square btn-sm">
+							{#if meal.restriction == "exactly"}
+								<Equal />
+							{:else if meal.restriction == "no_less_than"}
+								<ChevronLeft />
+							{:else if meal.restriction == "no_more_than"}
+								<ChevronRight />
+							{:else}
+								<LockOpen />
+							{/if}
+						</button>
+						<input type="number" value={meal.amount} class="input w-12 input-sm text-lg px-0 text-center {!meal.restriction && "invisible"}" />
+						<div class="dropdown w-16 relative {!meal.restriction && "invisible"}">
+							<div tabindex={0} role="button" class="btn btn-sm w-16">
+								{#if meal.percent}
+									%
+								{:else}
+									kcal
+								{/if}
+							</div>
+							<ul class="dropdown-content bg-base-300 p-2 absolute w-full rounded-b-lg">
+								<li class="hover:bg-primary hover:text-primary-content text-center rounded-sm">%</li>
+								<li class="hover:bg-primary hover:text-primary-content text-center rounded-sm">kcal</li>
+							</ul>
+						</div>
+					</div>
+					<div class="grid">
+						
+					</div>
 				</div>
 			{/each}
 			<div class="p-2 flex items-center">
@@ -92,3 +122,15 @@
 		</div>
 	</div>
 </main>
+
+<style lang="pcss" scoped>
+	input[type=number] {
+		appearance: textfield;
+		-moz-appearance: textfield;
+	}
+	input[type="number"]::-webkit-inner-spin-button,
+	input[type="number"]::-webkit-outer-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+</style>
