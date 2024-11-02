@@ -55,6 +55,8 @@
 		componentsData.forEach(component => meals[component.meal].components[component.dish] = component)
 	})
 	
+	////////////////////////////////////////////////////////////////////////////////
+	
 	function formatDate(date: Date): string {
 		const now = new Date()
 		if (date.getFullYear() == now.getFullYear()) {
@@ -66,6 +68,42 @@
 		} else {
 			return date.toDateString()
 		}
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	async function toggleMealRestriction(meal: number, existingRestriction: string | null) {
+		const newRestriction // ||: unrestricted, =, <=, >= :||
+			= !existingRestriction ? "exactly"
+				: existingRestriction == "exactly" ? "no_more_than"
+					: existingRestriction == "no_more_than" ? "no_less_than"
+						: null
+		const {error} = await supabase
+			.from("meals")
+			.update({restriction: newRestriction})
+			.eq("id", meal)
+		if (error) { console.error("Error in setting meal restriction:", error); toast.error("Error in setting meal restriction."); return }
+		meals[meal].restriction = newRestriction
+		// TODO: eventually, to protect against people spamming this, add some throttling
+	}
+	
+	async function setMealRestrictionAmount(meal: number, amount: number) {
+		const {error} = await supabase
+			.from("meals")
+			.update({amount})
+			.eq("id", meal)
+		if (error) { console.error("Error in setting meal restriction amount:", error); toast.error("Error in setting meal restriction amount."); return }
+		meals[meal].amount = amount
+	}
+	
+	async function setMealRestrictionPercent(meal: number, percent: boolean) {
+		const {error} = await supabase
+			.from("meals")
+			.update({percent})
+			.eq("id", meal)
+		if (error) { console.error("Error in setting meal restriction percent:", error); toast.error("Error in setting meal restriction percent."); return }
+		meals[meal].percent = percent
+		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 </script>
 
@@ -79,7 +117,7 @@
 				<div class="p-2 border-r border-dotted">
 					<div class="flex items-center gap-2">
 						<input type="text" value={meal.name} class="input text-xl p-1" />
-						<button class="btn btn-square btn-sm">
+						<button onclick={() => toggleMealRestriction(meal.id, meal.restriction)} class="btn btn-square btn-sm">
 							{#if meal.restriction == "exactly"}
 								<Equal />
 							{:else if meal.restriction == "no_less_than"}
@@ -90,20 +128,14 @@
 								<LockOpen />
 							{/if}
 						</button>
-						<input type="number" value={meal.amount} class="input w-12 input-sm text-lg px-0 text-center {!meal.restriction && "invisible"}" />
-						<div class="dropdown w-16 relative {!meal.restriction && "invisible"}">
-							<div tabindex={0} role="button" class="btn btn-sm w-16">
-								{#if meal.percent}
-									%
-								{:else}
-									kcal
-								{/if}
-							</div>
-							<ul class="dropdown-content bg-base-300 p-2 absolute w-full rounded-b-lg">
-								<li class="hover:bg-primary hover:text-primary-content text-center rounded-sm">%</li>
-								<li class="hover:bg-primary hover:text-primary-content text-center rounded-sm">kcal</li>
-							</ul>
-						</div>
+						<input type="number" value={meal.amount} onchange={event => setMealRestrictionAmount(meal.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!meal.restriction && "invisible"}" />
+						<button onclick={() => setMealRestrictionPercent(meal.id, !meal.percent)} class="btn btn-sm w-16 {!meal.restriction && "invisible"}">
+							{#if meal.percent}
+								%
+							{:else}
+								kcal
+							{/if}
+						</button>
 					</div>
 					<div class="grid">
 						
