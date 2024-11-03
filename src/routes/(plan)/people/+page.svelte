@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {Plus, Turtle, Rabbit, ChevronsDown, ChevronDown, Minus, ChevronUp, ChevronsUp} from "lucide-svelte"
 	import {supabase} from "$lib/supabase"
-	import {onMount} from "svelte"
+	import {onMount, getContext} from "svelte"
 	import {toast} from "svelte-sonner"
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -16,7 +16,8 @@
 		goal: number
 	}
 	
-	let people: Record<number, Person> = {}
+	let people: Record<number, Person> = $state({})
+	let household = getContext<number | undefined>("household")
 	
 	onMount(async () => {
 		const {data, error} = await supabase
@@ -82,6 +83,25 @@
 		if (error) { console.error("Error in setting person goal:", error); toast.error("Error in setting goal."); return }
 		people[person].goal = goal
 	}
+	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	async function createUser() {
+		const {data, error} = await supabase
+			.from("people")
+			.insert({
+				name: 'Name',
+				sex: .5,
+				height: 200,
+				weight: 200,
+				activity: 2,
+				goal: 0
+			})
+			.select("id, name, sex, height, weight, activity, goal")
+			.single()
+		if (error) { console.error("Error in creating new person:", error); toast.error("Error in creating new person."); return }
+		people[data.id] = data;
+	}
 </script>
 
 <table class="table table-fixed table-pin-rows table-pin-cols w-fit [&>*>tr>td]:border-x [&>*>tr>td]:border-base-200  [&>tbody>tr]:border-y-0">
@@ -91,10 +111,11 @@
 			{#each Object.values(people) as person (person.id)}
 				<td class="w-32">
 					<input type="text" value={person.name} onchange={event => setName(person.id, event.currentTarget.value)} placeholder="Name" class="w-full input" />
+					<!-- <Star /> -->
 				</td>
 			{/each}
 			<td class="w-32">
-				<button class="btn"><Plus />Add</button>
+				<button class="btn" onclick={()=>createUser()}><Plus />Add</button>
 			</td>
 		</tr>
 	</thead>
