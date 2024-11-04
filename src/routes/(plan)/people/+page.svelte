@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {Plus, Turtle, Rabbit, ChevronsDown, ChevronDown, Minus, ChevronUp, ChevronsUp} from "lucide-svelte"
 	import {supabase} from "$lib/supabase"
-	import {onMount} from "svelte"
+	import {onMount, getContext} from "svelte"
 	import {toast} from "svelte-sonner"
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -16,7 +16,8 @@
 		goal: number
 	}
 	
-	let people: Record<number, Person> = {}
+	let people: Record<number, Person> = $state({})
+	let household = getContext<number | undefined>("household")
 	
 	onMount(async () => {
 		const {data, error} = await supabase
@@ -82,6 +83,28 @@
 		if (error) { console.error("Error in setting person goal:", error); toast.error("Error in setting goal."); return }
 		people[person].goal = goal
 	}
+	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	const bros = ["Brohan", "Brochill", "Broseph von Brohammer", "Brotastic Broski", "Brosicle", "Brofessor Brobody", "Han Brolo", "Broseidon Lord of the Brocean", "Broba Fett", "Brohatma Ghandi", "Brohemian", "Bromosapien", "Broseph Stalin", "Abroham Lincoln", "Brorack Brobama", "Bro Biden", "Broranosaurus rex", "Brohemoth", "Broseph Gordon Levitt", "Brobi-wan Kenobi", "Marco Brolo", "Edgar Allan Bro", "Brozo the Clown", "C-3P Bro", "Frosty the Broman", "G.I. Bro", "Brose Marti", "The Higgs Broson", "Brodo Baggins", "Bilbro Baggins", "Teddy Broosevelt", "Franklin Broosevelt", "Broam Chomsky", "Brozilla", "Napoleon Bronaparte", "Brostradamos", "Quasibrodo", "Jon Bon Brovi", "Brobe Bryant", "Mr. Broboto", "Brolin Powell", "Brofi Annan", "Conan Bro'Brien", "Arnold Brozenegger", "Bro Yun Fat", "Pierce Brosnan", "Samuel Bro Jackson", "Quentin Broantino", "Clive Browen", "Elvis Brosely", "Demi Brovato", "Selena Bromez", "Michael Broson", "Ton Broosendaal", "Broctor Death", "Spiderbro", "Doctor Broctopus", "Bro Nye the Science Guy", "Bromethius", "Bromance", "Broland of Gilead", "Bro Jackson", "Indiana Brones", "Big Lebroski", "Angelina Broli", "Vincent van Bro", "Bromer Simpson", "Bromeo", "Kurt Brobain", "Broald Dahl", "Scarlett Brohansen"] // https://github.com/BSVino/DoubleAction/blame/master/mp/src/game/server/sdk/bots/bot_main.cpp#L92
+	
+	async function addPerson() {
+		const {data, error} = await supabase
+			.from("people")
+			.insert({
+				name: bros[Math.floor(Math.random() * bros.length)],
+				sex: Math.floor(Math.random() * 2),
+				height: Math.floor(Math.random() * 261 + 12), // 12 <= height <= 272
+				weight: Math.floor(Math.random() * 636), // 0 <= weight <= 635
+				activity: Math.floor(Math.random() * 5),
+				goal: Math.floor(Math.random() * 5 - 2),
+			})
+			.select("id, name, sex, height, weight, activity, goal")
+			.single()
+			// FIXME: adding this person won't work because we need to make households & stuff first
+		if (error) { console.error("Error in creating new person:", error); toast.error("Error in creating new person."); return }
+		people[data.id] = data
+	}
 </script>
 
 <table class="table table-fixed table-pin-rows table-pin-cols w-fit [&>*>tr>td]:border-x [&>*>tr>td]:border-base-200  [&>tbody>tr]:border-y-0">
@@ -94,7 +117,7 @@
 				</td>
 			{/each}
 			<td class="w-32">
-				<button class="btn"><Plus />Add</button>
+				<button class="btn" onclick={() => addPerson()}><Plus />Add</button>
 			</td>
 		</tr>
 	</thead>
