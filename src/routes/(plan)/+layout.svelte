@@ -18,8 +18,8 @@
 	
 	let households: Record<number, Household> = $state({})
 	let selected: number | undefined = $state()
-	// let newHousehold: boolean | undefined = $state()
-	setContext('household', selected)
+	// svelte-ignore state_referenced_locally
+	setContext("household", selected)
 	
 	onMount(async () => {
 		const {data, error} = await supabase
@@ -30,24 +30,22 @@
 		households = data.reduce((acc, p) => { acc[p.id] = p; return acc }, {} as Record<number, Household>)
 	})
 	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	const names = ["Mi Casa", "Hogwartz", "The White House", "Buckingham Palace"]
+	
 	async function addHousehold() {
-		const names = ["Mi Casa", "The big blue house", "Stenoien's household"]
 		const {data, error} = await supabase
 			.from("households")
 			.insert({name: names[Math.floor(Math.random() * names.length)]})
 		if (error) { console.error("Error in setting household name:", error); toast.error("Error in setting household name."); return }
-		households[data.id] = data
-		
-		// FIXME: add me as a member of the household
-
-		// people
-		// households
-		// householdMembers
-		// user
+		// households[data.id] = data
+		// FIXME: we can't get the household back unless we're a member
+		// TODO: add me as a member of the household
 	}
 	
 	async function setHouseholdName(household: number, name: string) {
-		const {data, error} = await supabase
+		const {error} = await supabase
 			.from("households")
 			.update({name})
 			.eq("id", household)

@@ -86,21 +86,24 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	async function createUser() {
+	const bros = ["Brohan", "Brochill", "Broseph von Brohammer", "Brotastic Broski", "Brosicle", "Brofessor Brobody", "Han Brolo", "Broseidon Lord of the Brocean", "Broba Fett", "Brohatma Ghandi", "Brohemian", "Bromosapien", "Broseph Stalin", "Abroham Lincoln", "Brorack Brobama", "Bro Biden", "Broranosaurus rex", "Brohemoth", "Broseph Gordon Levitt", "Brobi-wan Kenobi", "Marco Brolo", "Edgar Allan Bro", "Brozo the Clown", "C-3P Bro", "Frosty the Broman", "G.I. Bro", "Brose Marti", "The Higgs Broson", "Brodo Baggins", "Bilbro Baggins", "Teddy Broosevelt", "Franklin Broosevelt", "Broam Chomsky", "Brozilla", "Napoleon Bronaparte", "Brostradamos", "Quasibrodo", "Jon Bon Brovi", "Brobe Bryant", "Mr. Broboto", "Brolin Powell", "Brofi Annan", "Conan Bro'Brien", "Arnold Brozenegger", "Bro Yun Fat", "Pierce Brosnan", "Samuel Bro Jackson", "Quentin Broantino", "Clive Browen", "Elvis Brosely", "Demi Brovato", "Selena Bromez", "Michael Broson", "Ton Broosendaal", "Broctor Death", "Spiderbro", "Doctor Broctopus", "Bro Nye the Science Guy", "Bromethius", "Bromance", "Broland of Gilead", "Bro Jackson", "Indiana Brones", "Big Lebroski", "Angelina Broli", "Vincent van Bro", "Bromer Simpson", "Bromeo", "Kurt Brobain", "Broald Dahl", "Scarlett Brohansen"] // https://github.com/BSVino/DoubleAction/blame/master/mp/src/game/server/sdk/bots/bot_main.cpp#L92
+	
+	async function addPerson() {
 		const {data, error} = await supabase
 			.from("people")
 			.insert({
-				name: 'Name',
-				sex: .5,
-				height: 200,
-				weight: 200,
-				activity: 2,
-				goal: 0
+				name: bros[Math.floor(Math.random() * bros.length)],
+				sex: Math.floor(Math.random() * 2),
+				height: Math.floor(Math.random() * 261 + 12), // 12 <= height <= 272
+				weight: Math.floor(Math.random() * 636), // 0 <= weight <= 635
+				activity: Math.floor(Math.random() * 5),
+				goal: Math.floor(Math.random() * 5 - 2),
 			})
 			.select("id, name, sex, height, weight, activity, goal")
 			.single()
+			// FIXME: adding this person won't work because we need to make households & stuff first
 		if (error) { console.error("Error in creating new person:", error); toast.error("Error in creating new person."); return }
-		people[data.id] = data;
+		people[data.id] = data
 	}
 </script>
 
@@ -111,11 +114,10 @@
 			{#each Object.values(people) as person (person.id)}
 				<td class="w-32">
 					<input type="text" value={person.name} onchange={event => setName(person.id, event.currentTarget.value)} placeholder="Name" class="w-full input" />
-					<!-- <Star /> -->
 				</td>
 			{/each}
 			<td class="w-32">
-				<button class="btn" onclick={()=>createUser()}><Plus />Add</button>
+				<button class="btn" onclick={() => addPerson()}><Plus />Add</button>
 			</td>
 		</tr>
 	</thead>
