@@ -183,80 +183,82 @@
 	}
 </script>
 
-<main class="flex flex-col overflow-x-scroll">
-	{#each days as day (day)}
-		<div class="flex border-t">
-			<div class="flex border-r p-2 min-w-14 justify-center">
-				<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(new Date(day))}</span>
-			</div>
-			{#each Object.values(meals).filter(meal => meal.day == day).sort((a, b) => (String(a.time)).localeCompare(String(b.time))) as meal (meal.id)}
-				<div class="p-2 border-r border-dotted group">
-					<div class="flex items-center gap-2 mb-5">
-						<input type="text" value={meal.name} class="input text-xl p-1" />
-						<button onclick={() => toggleMealRestriction(meal.id, meal.restriction)} class="btn btn-square btn-sm">
-							{#if meal.restriction == "exactly"}
-								<Equal />
-							{:else if meal.restriction == "no_less_than"}
-								<ChevronLeft />
-							{:else if meal.restriction == "no_more_than"}
-								<ChevronRight />
-							{:else}
-								<LockOpen />
-							{/if}
-						</button>
-						<input type="number" value={meal.amount} onchange={event => setMealRestrictionAmount(meal.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!meal.restriction && "invisible"}" />
-						<button onclick={() => setMealRestrictionPercent(meal.id, !meal.percent)} class="btn btn-sm w-20 {!meal.restriction && "invisible"}">
-							{#if meal.percent}
-								%
-							{:else}
-								kcal
-							{/if}
-						</button>
-						<button onclick={() => removeMeal(meal.id)} class="btn btn-square btn-sm invisible group-hover:visible hover:bg-error"><X /></button>
-					</div>
-					<div class="grid grid-cols-[1fr_repeat(4,auto)] group/components gap-2 pl-4">
-						{#each Object.values(meal.components) as component (component.dish)}
-							<span class="text-lg flex items-center">{component.dish.name}</span>
-							<button onclick={() => toggleComponentRestriction(meal.id, component.dish.id, component.restriction)} class="btn btn-square btn-sm">
-								{#if component.restriction == "exactly"}
+<main class="flex h-[calc(100vh-4rem)] relative overflow-scroll scroll">
+	<div class="flex flex-col">
+		{#each days as day (day)}
+			<div class="flex border-t border-base-content">
+				<div class="flex border-r border-base-content p-2 min-w-14 justify-center items-center sticky left-0 bg-base-100">
+					<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(new Date(day))}</span>
+				</div>
+				{#each Object.values(meals).filter(meal => meal.day == day).sort((a, b) => (String(a.time)).localeCompare(String(b.time))) as meal (meal.id)}
+					<div class="p-2 border-r border-base-content border-dotted group">
+						<div class="flex items-center gap-2 mb-5">
+							<input type="text" value={meal.name} class="input text-xl p-1" />
+							<button onclick={() => toggleMealRestriction(meal.id, meal.restriction)} class="btn btn-square btn-sm">
+								{#if meal.restriction == "exactly"}
 									<Equal />
-								{:else if component.restriction == "no_less_than"}
+								{:else if meal.restriction == "no_less_than"}
 									<ChevronLeft />
-								{:else if component.restriction == "no_more_than"}
+								{:else if meal.restriction == "no_more_than"}
 									<ChevronRight />
 								{:else}
 									<LockOpen />
 								{/if}
 							</button>
-							<input type="number" value={component.amount} onchange={event => setComponentRestrictionAmount(meal.id, component.dish.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!component.restriction && "invisible"}" />
-							<button onclick={() => toggleComponentRestrictionPercent(meal.id, component.dish.id, component.percent)} class="btn btn-sm w-20 {!component.restriction && "invisible"}">
-								{#if component.percent === null}
-									servings
-								{:else if component.percent}
+							<input type="number" value={meal.amount} onchange={event => setMealRestrictionAmount(meal.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!meal.restriction && "invisible"}" />
+							<button onclick={() => setMealRestrictionPercent(meal.id, !meal.percent)} class="btn btn-sm w-20 {!meal.restriction && "invisible"}">
+								{#if meal.percent}
 									%
 								{:else}
 									kcal
 								{/if}
 							</button>
-							<button onclick={() => removeComponent(meal.id, component.dish.id)} class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><X /></button>
-						{/each}
+							<button onclick={() => removeMeal(meal.id)} class="btn btn-square btn-sm invisible group-hover:visible hover:bg-error"><X /></button>
+						</div>
+						<div class="grid grid-cols-[1fr_repeat(4,auto)] group/components gap-2 pl-4">
+							{#each Object.values(meal.components) as component (component.dish)}
+								<span class="text-lg flex items-center">{component.dish.name}</span>
+								<button onclick={() => toggleComponentRestriction(meal.id, component.dish.id, component.restriction)} class="btn btn-square btn-sm">
+									{#if component.restriction == "exactly"}
+										<Equal />
+									{:else if component.restriction == "no_less_than"}
+										<ChevronLeft />
+									{:else if component.restriction == "no_more_than"}
+										<ChevronRight />
+									{:else}
+										<LockOpen />
+									{/if}
+								</button>
+								<input type="number" value={component.amount} onchange={event => setComponentRestrictionAmount(meal.id, component.dish.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!component.restriction && "invisible"}" />
+								<button onclick={() => toggleComponentRestrictionPercent(meal.id, component.dish.id, component.percent)} class="btn btn-sm w-20 {!component.restriction && "invisible"}">
+									{#if component.percent === null}
+										servings
+									{:else if component.percent}
+										%
+									{:else}
+										kcal
+									{/if}
+								</button>
+								<button onclick={() => removeComponent(meal.id, component.dish.id)} class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><X /></button>
+							{/each}
+						</div>
+						<div class="flex gap-2 m-2">
+							<!-- TODO: make a dish-picker component -->
+							<input placeholder="Add Dish" class="input input-bordered grow" />
+							<button class="btn btn-square"><Plus /></button>
+						</div>
 					</div>
-					<div class="flex gap-2 m-2">
-						<!-- TODO: make a dish-picker component -->
-						<input placeholder="Add Dish" class="input input-bordered grow" />
-						<button class="btn btn-square"><Plus /></button>
-					</div>
+				{/each}
+				<div class="p-2 flex items-start gap-2">
+					<input type="text" placeholder="New Meal Name" class="input input-bordered" />
+					<button class="btn"><Plus /></button>
 				</div>
-			{/each}
-			<div class="p-2 flex items-center gap-2">
-				<button class="btn"><Plus /></button>
-				<input type="text" placeholder="Name" class="input input-bordered" />
 			</div>
-		</div>
-	{/each}
-	<div class="flex border-t">
-		<div class="min-w-14 border-r py-1 flex justify-center">
-			<button class="btn btn-square"><Plus /></button>
+		{/each}
+		<div class="flex border-t border-base-content">
+			<div class="min-w-14 border-r border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
+				<button class="btn btn-square"><Plus /></button>
+			</div>
 		</div>
 	</div>
 </main>
