@@ -203,14 +203,17 @@ export type Database = {
       }
       households: {
         Row: {
+          head: string
           id: number
           name: string
         }
         Insert: {
+          head?: string
           id?: number
           name: string
         }
         Update: {
+          head?: string
           id?: number
           name?: string
         }
@@ -302,69 +305,59 @@ export type Database = {
       }
       members: {
         Row: {
-          head: boolean
           household: number
-          person: number
+          user: string
         }
         Insert: {
-          head?: boolean
           household: number
-          person: number
+          user: string
         }
         Update: {
-          head?: boolean
           household?: number
-          person?: number
+          user?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "members_household_fkey"
-            columns: ["household"]
-            isOneToOne: false
-            referencedRelation: "households"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "members_person_fkey"
-            columns: ["person"]
-            isOneToOne: false
-            referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       people: {
         Row: {
           activity: number
           goal: number
           height: number
+          household: number | null
           id: number
           name: string
           sex: number
-          user: string | null
           weight: number
         }
         Insert: {
           activity: number
           goal: number
           height: number
+          household?: number | null
           id?: number
           name: string
           sex: number
-          user?: string | null
           weight: number
         }
         Update: {
           activity?: number
           goal?: number
           height?: number
+          household?: number | null
           id?: number
           name?: string
           sex?: number
-          user?: string | null
           weight?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "people_household_fkey"
+            columns: ["household"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       servings: {
         Row: {
@@ -406,22 +399,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cooperatives: {
-        Args: Record<PropertyKey, never>
-        Returns: number[]
-      }
-      my_households: {
-        Args: Record<PropertyKey, never>
-        Returns: number[]
-      }
-      my_households_headed: {
-        Args: Record<PropertyKey, never>
-        Returns: number[]
-      }
-      my_roommates: {
-        Args: Record<PropertyKey, never>
-        Returns: number[]
-      }
       search_generic_foods_by_name: {
         Args: {
           search: string

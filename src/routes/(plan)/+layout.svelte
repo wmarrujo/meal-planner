@@ -6,6 +6,9 @@
 	import {supabase} from "$lib/supabase"
 	import {Pencil, Plus} from "lucide-svelte"
 	import {toast} from "svelte-sonner"
+	import * as y from "yup"
+	import {superForm, defaults, setError} from "sveltekit-superforms"
+	import {yup} from "sveltekit-superforms/adapters"
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
@@ -14,47 +17,68 @@
 	type Household = {
 		id: number
 		name: string
+		head: string
 	}
 	
 	let households: Record<number, Household> = $state({})
-	let selected: number | undefined = $state()
+	let home: number | undefined = $state() // the current household selected
+	
 	// svelte-ignore state_referenced_locally
-	setContext("household", selected)
+	setContext("home", home) // make the current hosuehold available on all the pages
 	
 	onMount(async () => {
 		const {data, error} = await supabase
 			.from("households")
-			.select("id, name")
+			.select("id, name, head")
 			.order("name")
 		if (error) { console.error("Error in getting households:", error); toast.error("Error in getting households."); return }
 		households = data.reduce((acc, p) => { acc[p.id] = p; return acc }, {} as Record<number, Household>)
+		if (data.length != 0) home = data[0].id // TODO: store which one you were looking at in local storage or something
 	})
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	const names = ["Mi Casa", "Hogwartz", "The White House", "Buckingham Palace"]
+	// home edit
+	// id	id	= edit existing
+	// id	und	= regular page
+	// und	id	= create new (but go back to the id stored in edit as home if canceled)
+	// und	und	= create new
+	// TODO: store the previous home you were looking at in local storage or something, then we can turn edit into a boolean to keep things simpler
 	
-	async function addHousehold() {
+	const householdSchema = y.object({
+		name: y.string().required(),
+	})
+	
+	const householdForm = superForm(defaults(yup(householdSchema)), {SPA: true, validators: yup(householdSchema),
+			async onUpdate({form}) {
+				if (!form.valid) { toast.error("Invalid"); return }
+				home = await (home ? updateHousehold(home, form.data.name) : createHousehold(form.data.name)) // make the change, and go to any new household
+				edit = undefined // close the editor
+			},
+		}), {form: householdFormData} = householdForm
+	
+	let edit: number | undefined = $state(undefined) // if we're editing a household (creating a new household counts as true)
+	
+	async function createHousehold(name: string): Promise<number | undefined> {
 		const {data, error} = await supabase
 			.from("households")
-			.insert({name: names[Math.floor(Math.random() * names.length)]})
+			.insert({name})
+			.select("id, name, head")
+			.single()
 		if (error) { console.error("Error in setting household name:", error); toast.error("Error in setting household name."); return }
-		// households[data.id] = data
-		// FIXME: we can't get the household back unless we're a member
-		// TODO: add me as a member of the household
+		households[data.id] = data // update the local data
+		return data.id
 	}
 	
-	async function setHouseholdName(household: number, name: string) {
+	async function updateHousehold(household: number, name: string): Promise<number | undefined> {
 		const {error} = await supabase
 			.from("households")
 			.update({name})
 			.eq("id", household)
 		if (error) { console.error("Error in setting household name:", error); toast.error("Error in setting household name."); return }
-		households[household].name = name
-		edit = false
+		households[household].name = name // update the local data
+		return household
 	}
-	
-	let edit = $state(false)
 </script>
 
 <div>
@@ -66,29 +90,37 @@
 			<li><a href="{base}/meals" class="btn btn-ghost {$page.route.id?.startsWith("/meals") && "underline"}">Meals</a></li>
 		</ul>
 		<div class="grow"></div>
-		<button class="btn btn-square invisible {selected && "group-hover:visible"} {edit && "invisible"}" onclick={() => edit = true}><Pencil /></button>
-		<div class="dropdown">
-			<div tabindex="0" role="button" class="btn m-1">{selected ? households[selected]?.name : "No households available"}</div>
-			<ul class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow">
-				{#each Object.values(households) as household (household.id)}
-					<li class="flex flex-nowrap">
-						<button onclick={() => selected = household.id} class="btn">{household.name}</button>
-					</li>
-				{/each}
-				<span class="h-[1px] bg-slate-500 my-1"></span>
-				<li><button class="btn" onclick={() => addHousehold()}><Plus />Add</button></li>
-			</ul>
-		</div>
+		{#if home}
+		<div class="dropdown dropdown-end">
+			<div tabindex="0" role="button" class="btn m-1">{households[home]?.name}</div>
+			<ul class="dropdown-content menu bg-base-200 rounded-box z-[1] p-1 shadow">
+					{#if home}
+						<button class="btn flex-nowrap" onclick={() => {edit = home; $householdFormData = households[home!]}}><Pencil class="h-5" />Edit</button>
+					{/if}
+					{#each Object.values(households).filter(household => household.id != home) as household (household.id)}
+						<li class="flex flex-nowrap">
+							<button onclick={() => home = household.id} class="btn text-nowrap">{household.name}</button>
+						</li>
+					{/each}
+					<li><button class="btn flex-nowrap" onclick={() => { edit = home; home = undefined; $householdFormData = {name: ""} }}><Plus class="h-5" />New</button></li>
+				</ul>
+			</div>
+		{/if}
 		{#if $page.data.session?.user}
 			<button onclick={logOut} class="btn btn-ghost">Log Out</button>
 		{:else}
 			<a href="{base}/signup" class="btn btn-ghost">Sign Up</a>
 		{/if}
 	</nav>
-	<input
-		value={selected ? households[selected].name : ""}
-		onchange={event => selected ? setHouseholdName(selected, event.currentTarget.value) : toast.warning("You must select a household")}
-		class="input input-bordered text-2xl {edit ? "visible" : "hidden"}"
-	/>
-	{@render children()}
+	{#if home && !edit}
+		{@render children()}
+	{:else}
+		<form use:householdForm.enhance class="flex flex-col justify-center items-center p-4 gap-4">
+			<input name="name" type="text" bind:value={$householdFormData.name} placeholder="Household Name" class="input input-bordered text-center text-xl">
+			<button type="submit" class="btn btn-primary">{home ? "Update Household" : "Create Household"}</button>
+			{#if edit}
+				<button type="button" class="btn btn-ghost" onclick={() => { home = edit; edit = undefined }}>Cancel</button>
+			{/if}
+		</form>
+	{/if}
 </div>

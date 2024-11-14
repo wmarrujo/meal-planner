@@ -17,7 +17,7 @@
 	}
 	
 	let people: Record<number, Person> = $state({})
-	let household = getContext<number | undefined>("household")
+	let household = getContext<number | undefined>("home")
 	
 	onMount(async () => {
 		const {data, error} = await supabase
