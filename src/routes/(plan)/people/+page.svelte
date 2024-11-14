@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {Plus, Turtle, Rabbit, ChevronsDown, ChevronDown, Minus, ChevronUp, ChevronsUp} from "lucide-svelte"
 	import {supabase} from "$lib/supabase"
-	import {onMount, getContext} from "svelte"
+	import {getContext} from "svelte"
 	import {toast} from "svelte-sonner"
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -17,15 +17,20 @@
 	}
 	
 	let people: Record<number, Person> = $state({})
-	let household = getContext<number | undefined>("home")
+	const home = $derived(getContext<{value: number | undefined}>("home")?.value) // NOTE: because it's inside a guard that makes sure you only see the contents of this page when household is true (from layout), it will be defined whenever you can see anything (just not on mount)
 	
-	onMount(async () => {
-		const {data, error} = await supabase
-			.from("people")
-			.select("id, name, sex, height, weight, activity, goal")
-			.order("name")
-		if (error) { console.error("Error in getting people:", error); toast.error("Error in getting people."); return }
-		people = data.reduce((acc, p) => { acc[p.id] = p; return acc }, {} as Record<number, Person>)
+	$effect(() => {
+		if (home) {
+			supabase
+				.from("people")
+				.select("id, name, sex, height, weight, activity, goal")
+				.eq("household", home)
+				.order("name")
+				.then(({data, error}) => {
+					if (error) { console.error("Error in getting people:", error); toast.error("Error in getting people."); return }
+					people = data.reduce((acc, p) => { acc[p.id] = p; return acc }, {} as Record<number, Person>)
+				})
+		}
 	})
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -94,10 +99,11 @@
 			.insert({
 				name: bros[Math.floor(Math.random() * bros.length)],
 				sex: Math.floor(Math.random() * 2),
-				height: Math.floor(Math.random() * 261 + 12), // 12 <= height <= 272
-				weight: Math.floor(Math.random() * 636), // 0 <= weight <= 635
+				height: Math.floor(Math.random() * 261 + 12), // 12 <= height < 273
+				weight: Math.floor(Math.random() * 636), // 0 <= weight < 636
 				activity: Math.floor(Math.random() * 5),
 				goal: Math.floor(Math.random() * 5 - 2),
+				household: home,
 			})
 			.select("id, name, sex, height, weight, activity, goal")
 			.single()

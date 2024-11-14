@@ -7,7 +7,7 @@
 	import {Pencil, Plus} from "lucide-svelte"
 	import {toast} from "svelte-sonner"
 	import * as y from "yup"
-	import {superForm, defaults, setError} from "sveltekit-superforms"
+	import {superForm, defaults} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -22,9 +22,7 @@
 	
 	let households: Record<number, Household> = $state({})
 	let home: number | undefined = $state() // the current household selected
-	
-	// svelte-ignore state_referenced_locally
-	setContext("home", home) // make the current hosuehold available on all the pages
+	setContext("household", {get value() { return home }}) // make the current hosuehold available on all the pages
 	
 	onMount(async () => {
 		const {data, error} = await supabase
@@ -52,14 +50,14 @@
 	const householdForm = superForm(defaults(yup(householdSchema)), {SPA: true, validators: yup(householdSchema),
 			async onUpdate({form}) {
 				if (!form.valid) { toast.error("Invalid"); return }
-				home = await (home ? updateHousehold(home, form.data.name) : createHousehold(form.data.name)) // make the change, and go to any new household
+				home = await (home ? updateHousehold(home, form.data.name) : addHousehold(form.data.name)) // make the change, and go to any new household
 				edit = undefined // close the editor
 			},
 		}), {form: householdFormData} = householdForm
 	
 	let edit: number | undefined = $state(undefined) // if we're editing a household (creating a new household counts as true)
 	
-	async function createHousehold(name: string): Promise<number | undefined> {
+	async function addHousehold(name: string): Promise<number | undefined> {
 		const {data, error} = await supabase
 			.from("households")
 			.insert({name})
