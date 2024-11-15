@@ -17,7 +17,7 @@
 	}
 	
 	let people: Record<number, Person> = $state({})
-	const home = $derived(getContext<{value: number | undefined}>("home")?.value) // NOTE: because it's inside a guard that makes sure you only see the contents of this page when household is true (from layout), it will be defined whenever you can see anything (just not on mount)
+	const home = $derived(getContext<{value: number | undefined}>("home").value) // NOTE: because it's inside a guard that makes sure you only see the contents of this page when household is true (from layout), it will be defined whenever you can see anything (just not on mount)
 	
 	$effect(() => {
 		if (home) {
@@ -107,7 +107,6 @@
 			})
 			.select("id, name, sex, height, weight, activity, goal")
 			.single()
-			// FIXME: adding this person won't work because we need to make households & stuff first
 		if (error) { console.error("Error in creating new person:", error); toast.error("Error in creating new person."); return }
 		people[data.id] = data
 	}

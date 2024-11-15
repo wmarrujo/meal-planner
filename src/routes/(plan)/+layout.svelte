@@ -22,7 +22,9 @@
 	
 	let households: Record<number, Household> = $state({})
 	let home: number | undefined = $state() // the current household selected
-	setContext("household", {get value() { return home }}) // make the current hosuehold available on all the pages
+	$effect(() => { const saved = localStorage.getItem("home"); if (saved) home = Number(saved) }) // on page load, load home from the cache // NOTE: this must go before the line below
+	$effect(() => home ? localStorage.setItem("home", String(home)) : localStorage.removeItem("home")) // put it in local storage to make sure the value is persisted across reloads
+	setContext("home", {get value() { return home }}) // make the current hosuehold available on all the pages
 	
 	onMount(async () => {
 		const {data, error} = await supabase
@@ -31,7 +33,7 @@
 			.order("name")
 		if (error) { console.error("Error in getting households:", error); toast.error("Error in getting households."); return }
 		households = data.reduce((acc, p) => { acc[p.id] = p; return acc }, {} as Record<number, Household>)
-		if (data.length != 0) home = data[0].id // TODO: store which one you were looking at in local storage or something
+		if (data.length != 0) home = home && home in households ? home : data[0].id // if home is defined and in the set of households already, keep it selected, otherwise pick a random one (the first one)
 	})
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -41,7 +43,6 @@
 	// id	und	= regular page
 	// und	id	= create new (but go back to the id stored in edit as home if canceled)
 	// und	und	= create new
-	// TODO: store the previous home you were looking at in local storage or something, then we can turn edit into a boolean to keep things simpler
 	
 	const householdSchema = y.object({
 		name: y.string().required(),
