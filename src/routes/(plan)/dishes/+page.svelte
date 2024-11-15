@@ -10,7 +10,13 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	type Dish = {id: number, name: string, ingredients: Array<Ingredient> | null}
+	type Dish = {
+		id: number
+		name: string
+		ingredients: Array<Ingredient> | null
+		manager: string | null
+	}
+	
 	type Ingredient = {
 		food: {
 			id: number
@@ -34,12 +40,14 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
+	let {data} = $props()
+	
 	let dishes: Record<number, Dish> = $state({})
 	
 	onMount(async () => {
 		const {data: dishesData, error: dishesError} = await supabase
 			.from("dishes")
-			.select("id, name")
+			.select("id, name, manager")
 		if (dishesError) { console.error("Error in getting dishes:", dishesError); return }
 		
 		dishes = dishesData.reduce((acc, dish) => {
@@ -47,6 +55,7 @@
 				id: dish.id,
 				name: dish.name,
 				ingredients: null,
+				manager: dish.manager,
 			}
 			return acc
 		}, {} as Record<number, Dish>)
@@ -81,7 +90,7 @@
 				const {data, error} = await supabase
 					.from("dishes")
 					.insert({name: form.data.name})
-					.select("id, name")
+					.select("id, name, manager")
 					.single()
 				if (error) { console.error("Error in inserting dish:", error); setError(form, "Error in inserting dish."); toast.error("Failed to insert dish.") }
 				else {
@@ -90,6 +99,7 @@
 						id: data.id,
 						name: data.name,
 						ingredients: null,
+						manager: data.manager,
 					}
 				}
 			},
@@ -163,7 +173,7 @@
 	<div class="flex gap-4 p-4 grow overflow-y-scroll">
 		<!-- TODO: make a search bar -->
 		{#each Object.values(dishes) as dish (dish.id)}
-			<button onclick={() => { selected = dish; populateIngredients(dish) }} class="card bg-base-300 text-base-content w-64 shadow-xl h-min">
+			<button onclick={() => { selected = dish; populateIngredients(dish) }} class="card {dish.manager == data.session?.user.id ? "bg-base-300" : "bg-base-200"} text-base-content w-64 shadow-xl h-min">
 				<div class="card-body">
 					<div class="card-title">
 						<h2 class="card-title">{dish.name}</h2>
@@ -199,35 +209,47 @@
 									<span class="grow">{ingredient.food.name}</span>
 								</th>
 								<td class="text-nowrap p-1">
-									<div class="flex">
-										<input type="number" value={ingredient.amount} onchange={event => setIngredientAmount(selected!.id, ingredient.food.id, Number(event.currentTarget.value))} class="input px-0 text-center text-lg w-12">
+									<div class="flex items-center">
+										{#if selected.manager == data.session?.user.id}
+											<input type="number" value={ingredient.amount} onchange={event => setIngredientAmount(selected!.id, ingredient.food.id, Number(event.currentTarget.value))} class="input px-0 text-center text-lg w-12">
+										{:else}
+											<span class="text-center align-middle text-lg w-12">{ingredient.amount}</span>
+										{/if}
 										<div class="dropdown">
-											<div role="button" tabindex={0} class="btn btn-ghost outline-none flex flex-nowrap">
-												<span>{ingredient.serving ? ingredient.serving.unit : (ingredient.food.by_volume ? "ml" : "g")}</span>
-												{#if ingredient.serving?.modifier}<span class="opacity-50">ingredient.serving?.modifier</span>{/if}
-											</div>
-											<ul class="dropdown-content menu bg-base-300 z-10 w-full rounded-b-lg p-0">
-												<li><button onclick={() => setIngredientServing(selected!.id, ingredient.food.id, null)}>{ingredient.food.by_volume ? "ml" : "g"}</button></li>
-												{#each ingredient.servingOptions ?? [] as serving (serving.id)}
-													<li><button onclick={() => setIngredientServing(selected!.id, ingredient.food.id, serving.id)}>{serving.unit}</button></li>
-												{/each}
-											</ul>
+											{#if selected.manager == data.session?.user.id}
+												<div role="button" tabindex={0} class="btn btn-ghost outline-none flex flex-nowrap">
+													<span>{ingredient.serving ? ingredient.serving.unit : (ingredient.food.by_volume ? "ml" : "g")}</span>
+													{#if ingredient.serving?.modifier}<span class="opacity-50">ingredient.serving?.modifier</span>{/if}
+												</div>
+												<ul class="dropdown-content menu bg-base-300 z-10 w-full rounded-b-lg p-0">
+													<li><button onclick={() => setIngredientServing(selected!.id, ingredient.food.id, null)}>{ingredient.food.by_volume ? "ml" : "g"}</button></li>
+													{#each ingredient.servingOptions ?? [] as serving (serving.id)}
+														<li><button onclick={() => setIngredientServing(selected!.id, ingredient.food.id, serving.id)}>{serving.unit}</button></li>
+													{/each}
+												</ul>
+											{:else}
+												<span>{ingredient.food.by_volume ? "ml" : "g"}</span>
+											{/if}
 										</div>
 									</div>
 								</td>
-								<td class="p-1">
-									<button onclick={() => removeIngredient(selected!.id, ingredient.food.id)} class="btn btn-sm btn-square hover:bg-error invisible group-hover:visible"><X /></button>
-								</td>
+								{#if selected.manager == data.session?.user.id}
+									<td class="p-1">
+										<button onclick={() => removeIngredient(selected!.id, ingredient.food.id)} class="btn btn-sm btn-square hover:bg-error invisible group-hover:visible"><X /></button>
+									</td>
+								{/if}
 							</tr>
 						{/each}
-						<tr>
-							<td colspan={3}>
-								<div class="flex gap-2">
-									<FoodPicker bind:value={$newIngredientFormData.food} name="food" form="new-ingredient-form" class="grow" />
-									<button type="submit" class="btn btn-square" form="new-ingredient-form"><Plus /></button>
-								</div>
-							</td>
-						</tr>
+						{#if selected.manager == data.session?.user.id}
+							<tr>
+								<td colspan={3}>
+									<div class="flex gap-2">
+										<FoodPicker bind:value={$newIngredientFormData.food} name="food" form="new-ingredient-form" class="grow" />
+										<button type="submit" class="btn btn-square" form="new-ingredient-form"><Plus /></button>
+									</div>
+								</td>
+							</tr>
+						{/if}
 					</tbody>
 				</table>
 				<form id="new-ingredient-form" use:newIngredientForm.enhance></form>
