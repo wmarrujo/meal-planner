@@ -12,7 +12,7 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	let {children} = $props()
+	let {children, data} = $props()
 	
 	type Household = {
 		id: number
@@ -33,7 +33,7 @@
 			.order("name")
 		if (error) { console.error("Error in getting households:", error); toast.error("Error in getting households."); return }
 		households = data.reduce((acc, p) => { acc[p.id] = p; return acc }, {} as Record<number, Household>)
-		if (data.length != 0) home = home && home in households ? home : data[0].id // if home is defined and in the set of households already, keep it selected, otherwise pick a random one (the first one)
+		home = home && home in households ? home : data[0].id // if home is defined and in the set of households already, keep it selected, otherwise pick a random one (the first one)
 	})
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -90,10 +90,10 @@
 		</ul>
 		<div class="grow"></div>
 		{#if home}
-		<div class="dropdown dropdown-end">
-			<div tabindex="0" role="button" class="btn m-1">{households[home]?.name}</div>
-			<ul class="dropdown-content menu bg-base-200 rounded-box z-[1] p-1 shadow">
-					{#if home}
+			<div class="dropdown dropdown-end">
+				<div tabindex="0" role="button" class="btn m-1">{households[home]?.name}</div>
+				<ul class="dropdown-content menu bg-base-200 rounded-box z-[1] p-1 shadow">
+					{#if home && households[home]?.head == data.session?.user.id}
 						<button class="btn flex-nowrap" onclick={() => {edit = home; $householdFormData = households[home!]}}><Pencil class="h-5" />Edit</button>
 					{/if}
 					{#each Object.values(households).filter(household => household.id != home) as household (household.id)}
