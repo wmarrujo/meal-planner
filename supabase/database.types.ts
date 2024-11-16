@@ -14,22 +14,22 @@ export type Database = {
           amount: number
           dish: number
           meal: number
-          restriction: Database["public"]["Enums"]["restriction"]
-          unit: Database["public"]["Enums"]["unit"] | null
+          percent: boolean | null
+          restriction: Database["public"]["Enums"]["restriction"] | null
         }
         Insert: {
           amount?: number
           dish: number
           meal: number
-          restriction?: Database["public"]["Enums"]["restriction"]
-          unit?: Database["public"]["Enums"]["unit"] | null
+          percent?: boolean | null
+          restriction?: Database["public"]["Enums"]["restriction"] | null
         }
         Update: {
           amount?: number
           dish?: number
           meal?: number
-          restriction?: Database["public"]["Enums"]["restriction"]
-          unit?: Database["public"]["Enums"]["unit"] | null
+          percent?: boolean | null
+          restriction?: Database["public"]["Enums"]["restriction"] | null
         }
         Relationships: [
           {
@@ -203,14 +203,17 @@ export type Database = {
       }
       households: {
         Row: {
+          head: string
           id: number
           name: string
         }
         Insert: {
+          head?: string
           id?: number
           name: string
         }
         Update: {
+          head?: string
           id?: number
           name?: string
         }
@@ -302,19 +305,16 @@ export type Database = {
       }
       members: {
         Row: {
-          head: boolean
           household: number
-          person: number
+          user: string
         }
         Insert: {
-          head?: boolean
           household: number
-          person: number
+          user: string
         }
         Update: {
-          head?: boolean
           household?: number
-          person?: number
+          user?: string
         }
         Relationships: [
           {
@@ -324,13 +324,6 @@ export type Database = {
             referencedRelation: "households"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "members_person_fkey"
-            columns: ["person"]
-            isOneToOne: false
-            referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
         ]
       }
       people: {
@@ -338,33 +331,41 @@ export type Database = {
           activity: number
           goal: number
           height: number
+          household: number
           id: number
           name: string
           sex: number
-          user: string | null
           weight: number
         }
         Insert: {
           activity: number
           goal: number
           height: number
+          household: number
           id?: number
           name: string
           sex: number
-          user?: string | null
           weight: number
         }
         Update: {
           activity?: number
           goal?: number
           height?: number
+          household?: number
           id?: number
           name?: string
           sex?: number
-          user?: string | null
           weight?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "people_household_fkey"
+            columns: ["household"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       servings: {
         Row: {
@@ -406,21 +407,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cooperatives: {
-        Args: Record<PropertyKey, never>
-        Returns: number[]
-      }
       my_households: {
         Args: Record<PropertyKey, never>
         Returns: number[]
       }
-      my_households_headed: {
-        Args: Record<PropertyKey, never>
-        Returns: number[]
-      }
-      my_roommates: {
-        Args: Record<PropertyKey, never>
-        Returns: number[]
+      search_dishes_by_name: {
+        Args: {
+          search: string
+          page_index: number
+          page_size: number
+        }
+        Returns: {
+          description: string
+          id: number
+          locked: boolean
+          manager: string | null
+          name: string
+          public: boolean
+        }[]
       }
       search_generic_foods_by_name: {
         Args: {
@@ -463,7 +467,6 @@ export type Database = {
     }
     Enums: {
       restriction: "exactly" | "no_more_than" | "no_less_than"
-      unit: "kcal" | "g_or_ml" | "percent"
     }
     CompositeTypes: {
       [_ in never]: never
