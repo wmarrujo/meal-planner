@@ -6,6 +6,7 @@
 	import {Plus, X, LockOpen, Equal, ChevronLeft, ChevronRight, EllipsisVertical} from "lucide-svelte"
 	import {DateTime} from "luxon"
 	import {SvelteSet} from "svelte/reactivity"
+	import DishPicker from "./dish-picker.svelte"
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
@@ -167,7 +168,13 @@
 	// ADD
 	
 	async function addComponent(meal: number, dish: number) {
-		// TODO: implement
+		const {data, error} = await supabase
+			.from("components")
+			.insert({meal, dish})
+			.select("meal, dish:dishes!inner(id, name), amount, percent, restriction")
+			.single()
+		if (error) { console.error("Error in adding meal component:", error); toast.error("Error in adding meal component."); return }
+		meals[meal].components[dish] = data
 	}
 	
 	// EDIT
@@ -222,6 +229,7 @@
 			.eq("meal", meal)
 			.eq("dish", dish)
 		if (error) { console.error("Error in removing meal component:", error); toast.error("Error in removing meal component."); return }
+		delete meals[meal].components[dish]
 	}
 </script>
 
@@ -298,11 +306,7 @@
 								<button onclick={() => removeComponent(meal.id, component.dish.id)} class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><X /></button>
 							{/each}
 						</div>
-						<div class="flex gap-2 m-2">
-							<!-- TODO: make a dish-picker component -->
-							<input placeholder="Add Dish" class="input input-bordered grow" />
-							<button class="btn btn-square"><Plus /></button>
-						</div>
+						<DishPicker class="pt-2" onselect={dish => addComponent(meal.id, dish)} />
 					</div>
 				{/each}
 				<div class="p-2 flex items-start gap-2">

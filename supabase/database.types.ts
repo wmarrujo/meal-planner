@@ -316,14 +316,22 @@ export type Database = {
           household?: number
           user?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "members_household_fkey"
+            columns: ["household"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       people: {
         Row: {
           activity: number
           goal: number
           height: number
-          household: number | null
+          household: number
           id: number
           name: string
           sex: number
@@ -333,7 +341,7 @@ export type Database = {
           activity: number
           goal: number
           height: number
-          household?: number | null
+          household: number
           id?: number
           name: string
           sex: number
@@ -343,7 +351,7 @@ export type Database = {
           activity?: number
           goal?: number
           height?: number
-          household?: number | null
+          household?: number
           id?: number
           name?: string
           sex?: number
@@ -399,6 +407,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      my_households: {
+        Args: Record<PropertyKey, never>
+        Returns: number[]
+      }
+      search_dishes_by_name: {
+        Args: {
+          search: string
+          page_index: number
+          page_size: number
+        }
+        Returns: {
+          description: string
+          id: number
+          locked: boolean
+          manager: string | null
+          name: string
+          public: boolean
+        }[]
+      }
       search_generic_foods_by_name: {
         Args: {
           search: string
