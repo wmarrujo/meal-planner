@@ -4,14 +4,15 @@
 	import {toast} from "svelte-sonner"
 	import type {Enums} from "$schema"
 	import {Plus, X, LockOpen, Equal, ChevronLeft, ChevronRight} from "lucide-svelte"
+	import {DateTime} from "luxon"
+	import {SvelteSet} from "svelte/reactivity"
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
 	type Meal = {
 		id: number
 		name: string
-		day: string // the ISO date string
-		time: string | null // the ISO time string
+		date: DateTime
 		amount: number
 		percent: boolean | null
 		restriction: Enums<"restriction"> | null
@@ -29,8 +30,12 @@
 		restriction: string | null
 	}
 	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	let days = $state<SvelteSet<DateTime>>(new SvelteSet([DateTime.now().startOf("day")])) // all the days to show (all at the start of the day)
+	
 	let meals: Record<number, Meal> = $state({})
-	let days = $derived([...new Set(Object.values(meals).map(meal => meal.day))].sort())
+	$effect(() => Object.values(meals).forEach(meal => days.add(meal.date.startOf("day")))) // make sure each of the days that a meal is on are in the days list
 	
 	onMount(async () => {
 		const {data: mealsData, error: mealsError} = await supabase
@@ -42,8 +47,7 @@
 			acc[meal.id] = {
 				id: meal.id,
 				name: meal.name,
-				day: meal.day!,
-				time: meal.time,
+				date: DateTime.fromISO(meal.time ? `${meal.day!}T${meal.time}` : meal.day!),
 				amount: meal.amount,
 				percent: meal.percent,
 				restriction: meal.restriction,
@@ -62,17 +66,23 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	function formatDate(date: Date): string {
-		const now = new Date()
-		if (date.getFullYear() == now.getFullYear()) {
-			return date.toDateString()
-			// TODO: for near dates, say "yesterday", "today", "tomorrow"
-			// TODO: for near dates say "last monday", "next tuesday", etc.
-			// TODO: for starts of months, say "Oct 1", "Nov 1" in addition to near dates
-			// TODO: for other dates within the year, just say "Fri Nov 23", "Tue Apr 15"
-		} else {
-			return date.toDateString()
+	function formatDate(date: DateTime): string {
+		const now = DateTime.now().startOf("day")
+		const monthStartIfNeeded = date.equals(date.startOf("month")) ? ", " + date.toLocaleString({month: "short", day: "numeric"}) : ""
+		
+		if (date.year == now.year) {
+			// for near dates, say "yesterday", "today", "tomorrow"
+			if (date.equals(now.minus({days: 1}))) return "Yesterday" + monthStartIfNeeded
+			if (date.equals(now)) return "Today" + monthStartIfNeeded
+			if (date.equals(now.plus({days: 1}))) return "Tomorrow" + monthStartIfNeeded
+			// for near dates say "last monday", "next tuesday", etc.
+			if (-7 <= date.diff(now).as("days") && date.diff(now).as("days") < 0) return "Last " + date.toLocaleString({weekday: "long"}) + monthStartIfNeeded
+			if (0 <= date.diff(now).as("days") && date.diff(now).as("days") < 7) return date.toLocaleString({weekday: "long"}) + monthStartIfNeeded
+			if (7 <= date.diff(now).as("days") && date.diff(now).as("days") < 14) return "Next " + date.toLocaleString({weekday: "long"}) + monthStartIfNeeded
+			// for other dates within the year, just say "Fri Nov 23", "Tue Apr 15"
+			return date.toLocaleString({weekday: "short", month: "short", day: "numeric"})
 		}
+		return date.toLocaleString({weekday: "short", year: "numeric", month: "short", day: "numeric"})
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -188,9 +198,9 @@
 		{#each days as day (day)}
 			<div class="flex border-t border-base-content">
 				<div class="flex border-r border-base-content p-2 min-w-14 justify-center items-center sticky left-0 bg-base-100">
-					<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(new Date(day))}</span>
+					<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(day)}</span>
 				</div>
-				{#each Object.values(meals).filter(meal => meal.day == day).sort((a, b) => (String(a.time)).localeCompare(String(b.time))) as meal (meal.id)}
+				{#each Object.values(meals).filter(meal => meal.date.startOf("day") == day).sort((a, b) => a.date.diff(b.date, "minutes").as("minutes")) as meal (meal.id)}
 					<div class="p-2 border-r border-base-content border-dotted group">
 						<div class="flex items-center gap-2 mb-5">
 							<input type="text" value={meal.name} class="input text-xl p-1" />
@@ -257,7 +267,7 @@
 		{/each}
 		<div class="flex border-t border-base-content">
 			<div class="min-w-14 border-r border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
-				<button class="btn btn-square"><Plus /></button>
+				<button class="btn btn-square" onclick={() => days.add(DateTime.max(...days).plus({day: 1}))}><Plus /></button>
 			</div>
 		</div>
 	</div>
