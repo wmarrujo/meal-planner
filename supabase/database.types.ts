@@ -13,26 +13,23 @@ export type Database = {
         Row: {
           amount: number
           dish: number
-          meal_day: string
-          meal_name: string
-          restriction: Database["public"]["Enums"]["restriction"]
-          unit: Database["public"]["Enums"]["unit"] | null
+          meal: number
+          percent: boolean | null
+          restriction: Database["public"]["Enums"]["restriction"] | null
         }
         Insert: {
           amount?: number
           dish: number
-          meal_day: string
-          meal_name: string
-          restriction?: Database["public"]["Enums"]["restriction"]
-          unit?: Database["public"]["Enums"]["unit"] | null
+          meal: number
+          percent?: boolean | null
+          restriction?: Database["public"]["Enums"]["restriction"] | null
         }
         Update: {
           amount?: number
           dish?: number
-          meal_day?: string
-          meal_name?: string
-          restriction?: Database["public"]["Enums"]["restriction"]
-          unit?: Database["public"]["Enums"]["unit"] | null
+          meal?: number
+          percent?: boolean | null
+          restriction?: Database["public"]["Enums"]["restriction"] | null
         }
         Relationships: [
           {
@@ -43,44 +40,53 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "components_meal_day_meal_name_fkey"
-            columns: ["meal_day", "meal_name"]
+            foreignKeyName: "components_meal_fkey"
+            columns: ["meal"]
             isOneToOne: false
             referencedRelation: "meals"
-            referencedColumns: ["day", "name"]
+            referencedColumns: ["id"]
           },
         ]
       }
       dishes: {
         Row: {
+          description: string
           id: number
+          locked: boolean
+          manager: string | null
           name: string
+          public: boolean
         }
         Insert: {
+          description?: string
           id?: number
+          locked?: boolean
+          manager?: string | null
           name: string
+          public?: boolean
         }
         Update: {
+          description?: string
           id?: number
+          locked?: boolean
+          manager?: string | null
           name?: string
+          public?: boolean
         }
         Relationships: []
       }
       eaters: {
         Row: {
           eater: number
-          meal_day: string
-          meal_name: string
+          meal: number
         }
         Insert: {
           eater: number
-          meal_day: string
-          meal_name: string
+          meal: number
         }
         Update: {
           eater?: number
-          meal_day?: string
-          meal_name?: string
+          meal?: number
         }
         Relationships: [
           {
@@ -91,11 +97,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "eaters_meal_day_meal_name_fkey"
-            columns: ["meal_day", "meal_name"]
-            isOneToOne: true
+            foreignKeyName: "eaters_meal_fkey"
+            columns: ["meal"]
+            isOneToOne: false
             referencedRelation: "meals"
-            referencedColumns: ["day", "name"]
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -113,13 +119,16 @@ export type Database = {
           description: string | null
           fat: number | null
           fiber: number | null
+          generic: boolean
           id: number
           iron: number | null
+          manager: string | null
           monounsaturated_fat: number | null
           name: string
           polyunsaturated_fat: number | null
           potassium: number | null
           protein: number | null
+          public: boolean
           saturated_fat: number | null
           sodium: number | null
           sub_brand: string | null
@@ -141,13 +150,16 @@ export type Database = {
           description?: string | null
           fat?: number | null
           fiber?: number | null
+          generic?: boolean
           id?: number
           iron?: number | null
+          manager?: string | null
           monounsaturated_fat?: number | null
           name: string
           polyunsaturated_fat?: number | null
           potassium?: number | null
           protein?: number | null
+          public?: boolean
           saturated_fat?: number | null
           sodium?: number | null
           sub_brand?: string | null
@@ -169,13 +181,16 @@ export type Database = {
           description?: string | null
           fat?: number | null
           fiber?: number | null
+          generic?: boolean
           id?: number
           iron?: number | null
+          manager?: string | null
           monounsaturated_fat?: number | null
           name?: string
           polyunsaturated_fat?: number | null
           potassium?: number | null
           protein?: number | null
+          public?: boolean
           saturated_fat?: number | null
           sodium?: number | null
           sub_brand?: string | null
@@ -186,24 +201,42 @@ export type Database = {
         }
         Relationships: []
       }
+      households: {
+        Row: {
+          head: string
+          id: number
+          name: string
+        }
+        Insert: {
+          head?: string
+          id?: number
+          name: string
+        }
+        Update: {
+          head?: string
+          id?: number
+          name?: string
+        }
+        Relationships: []
+      }
       ingredients: {
         Row: {
           amount: number
           dish: number
           food: number
-          serving: number
+          serving: number | null
         }
         Insert: {
           amount: number
           dish: number
           food: number
-          serving: number
+          serving?: number | null
         }
         Update: {
           amount?: number
           dish?: number
           food?: number
-          serving?: number
+          serving?: number | null
         }
         Relationships: [
           {
@@ -232,59 +265,107 @@ export type Database = {
       meals: {
         Row: {
           amount: number
-          day: string
+          day: string | null
+          household: number
+          id: number
           name: string
           percent: boolean
           restriction: Database["public"]["Enums"]["restriction"] | null
+          time: string | null
         }
         Insert: {
           amount?: number
-          day: string
+          day?: string | null
+          household: number
+          id?: number
           name: string
           percent?: boolean
           restriction?: Database["public"]["Enums"]["restriction"] | null
+          time?: string | null
         }
         Update: {
           amount?: number
-          day?: string
+          day?: string | null
+          household?: number
+          id?: number
           name?: string
           percent?: boolean
           restriction?: Database["public"]["Enums"]["restriction"] | null
+          time?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "meals_household_fkey"
+            columns: ["household"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      members: {
+        Row: {
+          household: number
+          user: string
+        }
+        Insert: {
+          household: number
+          user: string
+        }
+        Update: {
+          household?: number
+          user?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "members_household_fkey"
+            columns: ["household"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       people: {
         Row: {
           activity: number
           goal: number
           height: number
+          household: number
           id: number
           name: string
           sex: number
-          user: string | null
           weight: number
         }
         Insert: {
           activity: number
           goal: number
           height: number
+          household: number
           id?: number
           name: string
           sex: number
-          user?: string | null
           weight: number
         }
         Update: {
           activity?: number
           goal?: number
           height?: number
+          household?: number
           id?: number
           name?: string
           sex?: number
-          user?: string | null
           weight?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "people_household_fkey"
+            columns: ["household"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       servings: {
         Row: {
@@ -326,11 +407,66 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      my_households: {
+        Args: Record<PropertyKey, never>
+        Returns: number[]
+      }
+      search_dishes_by_name: {
+        Args: {
+          search: string
+          page_index: number
+          page_size: number
+        }
+        Returns: {
+          description: string
+          id: number
+          locked: boolean
+          manager: string | null
+          name: string
+          public: boolean
+        }[]
+      }
+      search_generic_foods_by_name: {
+        Args: {
+          search: string
+          page_index: number
+          page_size: number
+        }
+        Returns: {
+          brand: string | null
+          by_volume: boolean
+          calcium: number | null
+          calories: number | null
+          carbohydrates: number | null
+          category: string | null
+          cholesterol: number | null
+          company: string | null
+          country: string | null
+          description: string | null
+          fat: number | null
+          fiber: number | null
+          generic: boolean
+          id: number
+          iron: number | null
+          manager: string | null
+          monounsaturated_fat: number | null
+          name: string
+          polyunsaturated_fat: number | null
+          potassium: number | null
+          protein: number | null
+          public: boolean
+          saturated_fat: number | null
+          sodium: number | null
+          sub_brand: string | null
+          sugar: number | null
+          trans_fat: number | null
+          upc: string | null
+          water: number | null
+        }[]
+      }
     }
     Enums: {
       restriction: "exactly" | "no_more_than" | "no_less_than"
-      unit: "kcal" | "g_or_ml" | "percent"
     }
     CompositeTypes: {
       [_ in never]: never
