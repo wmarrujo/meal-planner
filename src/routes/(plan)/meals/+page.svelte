@@ -1,9 +1,9 @@
 <script lang="ts">
-	import {onMount} from "svelte"
+	import {onMount, getContext} from "svelte"
 	import {supabase} from "$lib/supabase"
 	import {toast} from "svelte-sonner"
 	import type {Enums} from "$schema"
-	import {Plus, X, LockOpen, Equal, ChevronLeft, ChevronRight} from "lucide-svelte"
+	import {Plus, X, LockOpen, Equal, ChevronLeft, ChevronRight, EllipsisVertical} from "lucide-svelte"
 	import {DateTime} from "luxon"
 	import {SvelteSet} from "svelte/reactivity"
 	
@@ -32,10 +32,12 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	let days = $state<SvelteSet<DateTime>>(new SvelteSet([DateTime.now().startOf("day")])) // all the days to show (all at the start of the day)
+	const home = $derived(getContext<{value: number | undefined}>("home").value) // NOTE: because it's inside a guard that makes sure you only see the contents of this page when household is true (from layout), it will be defined whenever you can see anything (just not on mount)
+	
+	let days = $state<SvelteSet<string>>(new SvelteSet([DateTime.now().toISODate()!])) // all the days to show (all at the start of the day), as ISO Dates so they will be equal in the set
 	
 	let meals: Record<number, Meal> = $state({})
-	$effect(() => Object.values(meals).forEach(meal => days.add(meal.date.startOf("day")))) // make sure each of the days that a meal is on are in the days list
+	$effect(() => Object.values(meals).forEach(meal => days.add(meal.date.toISODate()!))) // make sure each of the days that a meal is on are in the days list
 	
 	onMount(async () => {
 		const {data: mealsData, error: mealsError} = await supabase
@@ -65,6 +67,8 @@
 	})
 	
 	////////////////////////////////////////////////////////////////////////////////
+	// DATE
+	////////////////////////////////////////////////////////////////////////////////
 	
 	function formatDate(date: DateTime): string {
 		const now = DateTime.now().startOf("day")
@@ -86,10 +90,28 @@
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
+	// MEAL
+	////////////////////////////////////////////////////////////////////////////////
 	
-	async function addMeal(name: string) {
-		// TODO: implement
+	// ADD
+	
+	const mealNames = ["Breakfast", "Lunch", "Dinner", "Snack", "Brunch", "Linner", "Midnight Snack", "Second Breakfast", "Elevenses", "Luncheon", "Afternoon Tea", "Supper"]
+	
+	async function addMeal(day: DateTime | null) {
+		const {data, error} = await supabase
+			.from("meals")
+			.insert({
+				name: mealNames[Math.floor(Math.random() * mealNames.length)],
+				day: day?.toISODate(),
+				household: home!,
+			})
+			.select("id, name, day, time, amount, percent, restriction")
+			.single()
+		if (error) { console.error("Error in creating new meal:", error); toast.error("Error in creating new meal"); return }
+		meals[data.id] = {...data, date: DateTime.fromISO(data.day!), components: []}
 	}
+	
+	// EDIT
 	
 	async function toggleMealRestriction(meal: number, existingRestriction: string | null) {
 		const newRestriction // ||: unrestricted, =, <=, >= :||
@@ -125,6 +147,7 @@
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
+	// REMOVE
 	
 	async function removeMeal(meal: number) {
 		// TODO: add an "are you sure?" check
@@ -134,13 +157,20 @@
 			.delete()
 			.eq("id", meal)
 		if (error) { console.error("Error in removing meal:", error); toast.error("Error in removing meal."); return }
+		delete meals[meal]
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
+	// COMPONENT
+	////////////////////////////////////////////////////////////////////////////////
+	
+	// ADD
 	
 	async function addComponent(meal: number, dish: number) {
 		// TODO: implement
 	}
+	
+	// EDIT
 	
 	async function toggleComponentRestriction(meal: number, dish: number, existingRestriction: string | null) {
 		const newRestriction // ||: unrestricted, =, <=, >= :||
@@ -181,6 +211,8 @@
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
+	// REMOVE
+	
 	async function removeComponent(meal: number, dish: number) {
 		// TODO: add an "are you sure?" check
 		// TODO: add a soft-delete
@@ -195,12 +227,26 @@
 
 <main class="flex h-[calc(100vh-4rem)] relative overflow-scroll scroll">
 	<div class="flex flex-col">
-		{#each days as day (day)}
+		{#each [...days].map(d => DateTime.fromISO(d)) as day (day)}
+			{#if DateTime.now() < day && !days.has(day.minus({days: 1}).toISODate()!) && !days.has(day.minus({days: 2}).toISODate()!) && !days.has(day.minus({days: 3}).toISODate()!)}
+				<div class="flex border-t border-base-content">
+					<div class="min-w-14 border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
+						<EllipsisVertical class="my-3" />
+					</div>
+				</div>
+			{/if}
+			{#if DateTime.now() < day && !days.has(day.minus({days: 1}).toISODate()!) && !days.has(day.minus({days: 2}).toISODate()!)}
+				<div class="flex border-t border-base-content">
+					<div class="min-w-14 border-r border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
+						<button onclick={() => days.add(day.minus({days: 1}).toISODate()!)} class="btn btn-square"><Plus /></button>
+					</div>
+				</div>
+			{/if}
 			<div class="flex border-t border-base-content">
 				<div class="flex border-r border-base-content p-2 min-w-14 justify-center items-center sticky left-0 bg-base-100">
 					<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(day)}</span>
 				</div>
-				{#each Object.values(meals).filter(meal => meal.date.startOf("day") == day).sort((a, b) => a.date.diff(b.date, "minutes").as("minutes")) as meal (meal.id)}
+				{#each Object.values(meals).filter(meal => meal.date.startOf("day").equals(day)).sort((a, b) => a.date.diff(b.date, "minutes").as("minutes")) as meal (meal.id)}
 					<div class="p-2 border-r border-base-content border-dotted group">
 						<div class="flex items-center gap-2 mb-5">
 							<input type="text" value={meal.name} class="input text-xl p-1" />
@@ -260,16 +306,24 @@
 					</div>
 				{/each}
 				<div class="p-2 flex items-start gap-2">
-					<input type="text" placeholder="New Meal Name" class="input input-bordered" />
-					<button class="btn"><Plus /></button>
+					<button onclick={() => addMeal(day)} class="btn"><Plus /></button>
 				</div>
 			</div>
+			{#if !days.has(day.plus({days: 1}).toISODate()!)}
+				<div class="flex border-t border-base-content">
+					<div class="min-w-14 border-r border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
+						<button onclick={() => days.add(day.plus({days: 1}).toISODate()!)} class="btn btn-square"><Plus /></button>
+					</div>
+				</div>
+			{/if}
+			{#if day < DateTime.now() && !days.has(day.plus({days: 1}).toISODate()!) && !days.has(day.plus({days: 2}).toISODate()!) && !days.has(day.plus({days: 3}).toISODate()!)}
+				<div class="flex border-t border-base-content">
+					<div class="min-w-14 border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
+						<EllipsisVertical class="my-3" />
+					</div>
+				</div>
+			{/if}
 		{/each}
-		<div class="flex border-t border-base-content">
-			<div class="min-w-14 border-r border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
-				<button class="btn btn-square" onclick={() => days.add(DateTime.max(...days).plus({day: 1}))}><Plus /></button>
-			</div>
-		</div>
 	</div>
 </main>
 
