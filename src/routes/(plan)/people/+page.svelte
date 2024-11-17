@@ -3,35 +3,11 @@
 	import {supabase} from "$lib/supabase"
 	import {getContext} from "svelte"
 	import {toast} from "svelte-sonner"
+	import {households, type Household} from "$lib/cache.svelte"
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	type Person = {
-		id: number
-		name: string
-		sex: number
-		height: number
-		weight: number
-		activity: number
-		goal: number
-	}
-	
-	let people: Record<number, Person> = $state({})
-	const home = $derived(getContext<{value: number | undefined}>("home").value) // NOTE: because it's inside a guard that makes sure you only see the contents of this page when household is true (from layout), it will be defined whenever you can see anything (just not on mount)
-	
-	$effect(() => {
-		if (home) {
-			supabase
-				.from("people")
-				.select("id, name, sex, height, weight, activity, goal")
-				.eq("household", home)
-				.order("name")
-				.then(({data, error}) => {
-					if (error) { console.error("Error in getting people:", error); toast.error("Error in getting people."); return }
-					people = data.reduce((acc, p) => { acc[p.id] = p; return acc }, {} as Record<number, Person>)
-				})
-		}
-	})
+	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: because it's inside a guard that makes sure you only see the contents of this page when household is true (from layout), it will be defined whenever you can see anything (just not on mount)
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
@@ -41,7 +17,7 @@
 			.update({name})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person name:", error); toast.error("Error in setting name."); return }
-		people[person].name = name
+		home!.people.get(person)!.name = name
 	}
 	
 	async function setSex(person: number, sex: number) {
@@ -50,7 +26,7 @@
 			.update({sex})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person sex:", error); toast.error("Error in setting sex."); return }
-		people[person].sex = sex
+		home!.people.get(person)!.sex = sex
 	}
 	
 	async function setHeight(person: number, height: number) {
@@ -59,7 +35,7 @@
 			.update({height})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person height:", error); toast.error("Error in setting height."); return }
-		people[person].height = height
+		home!.people.get(person)!.height = height
 	}
 	
 	async function setWeight(person: number, weight: number) {
@@ -68,7 +44,7 @@
 			.update({weight})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person weight:", error); toast.error("Error in setting weight."); return }
-		people[person].weight = weight
+		home!.people.get(person)!.weight = weight
 	}
 	
 	async function setActivity(person: number, activity: number) {
@@ -77,7 +53,7 @@
 			.update({activity})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person activity:", error); toast.error("Error in setting activity."); return }
-		people[person].activity = activity
+		home!.people.get(person)!.activity = activity
 	}
 	
 	async function setGoal(person: number, goal: number) {
@@ -86,7 +62,7 @@
 			.update({goal})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person goal:", error); toast.error("Error in setting goal."); return }
-		people[person].goal = goal
+		home!.people.get(person)!.goal = goal
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -103,12 +79,12 @@
 				weight: Math.floor(Math.random() * 636), // 0 <= weight < 636
 				activity: Math.floor(Math.random() * 5),
 				goal: Math.floor(Math.random() * 5 - 2),
-				household: home,
+				household: home!.id,
 			})
-			.select("id, name, sex, height, weight, activity, goal")
+			.select("id, name, sex, height, weight, activity, goal, household")
 			.single()
 		if (error) { console.error("Error in creating new person:", error); toast.error("Error in creating new person."); return }
-		people[data.id] = data
+		home!.people.set(data.id, data)
 	}
 </script>
 
@@ -116,7 +92,7 @@
 	<thead>
 		<tr>
 			<th class="w-24 text-right text-base">Name</th>
-			{#each Object.values(people) as person (person.id)}
+			{#each home!.people.values() as person (person.id)}
 				<td class="w-32">
 					<input type="text" value={person.name} onchange={event => setName(person.id, event.currentTarget.value)} placeholder="Name" class="w-full input" />
 				</td>
@@ -129,7 +105,7 @@
 	<tbody>
 		<tr>
 			<th class="text-right">Sex</th>
-			{#each Object.values(people) as person (person.id)}
+			{#each home!.people.values() as person (person.id)}
 				<td>
 					<div class="flex items-center">
 						<span class="text-lg pr-1" title="Female">♀</span>
@@ -142,7 +118,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Height</th>
-			{#each Object.values(people) as person (person.id)}
+			{#each home!.people.values() as person (person.id)}
 				<td>
 					<input type="number" value={person.height} onchange={event => setHeight(person.id, Number(event.currentTarget.value))} class="w-2/3 pr-0 text-lg text-right input input-sm">
 					<span class="w-1/3 text-left">cm</span>
@@ -152,7 +128,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Weight</th>
-			{#each Object.values(people) as person (person.id)}
+			{#each home!.people.values() as person (person.id)}
 				<td>
 					<input type="number" value={person.weight} onchange={event => setWeight(person.id, Number(event.currentTarget.value))} class="w-2/3 pr-0 text-lg text-right input input-sm">
 					<span class="w-1/3 text-left">kg</span>
@@ -162,7 +138,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Activity</th>
-			{#each Object.values(people) as person (person.id)}
+			{#each home!.people.values() as person (person.id)}
 				<td>
 					<input type="range" value={person.activity} min={0} max={4} step={1} onchange={event => setActivity(person.id, Number(event.currentTarget.value))} class="range">
 					<div class="flex justify-between w-full px-2 text-xs">
@@ -174,7 +150,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Goal</th>
-			{#each Object.values(people) as person (person.id)}
+			{#each home!.people.values() as person (person.id)}
 				<td>
 					<input type="range" value={person.goal} min={-2} max={2} step={1} onchange={event => setGoal(person.id, Number(event.currentTarget.value))} class="range">
 					<div class="flex justify-between w-full px-2 text-xs">

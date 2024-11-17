@@ -45,6 +45,7 @@
 			.from("meals")
 			.select("id, name, day, time, amount, percent, restriction")
 			.not("day", "is", null)
+			// TODO: restrict to this household
 		if (mealsError) { console.error("Error in getting meals:", mealsError); toast.error("Error in getting meals."); return }
 		meals = mealsData.reduce((acc, meal) => {
 			acc[meal.id] = {

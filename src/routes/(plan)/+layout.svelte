@@ -9,40 +9,35 @@
 	import * as y from "yup"
 	import {superForm, defaults} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
+	import {households, type Household, type Person, type Meal} from "$lib/cache.svelte.js"
+	import {SvelteMap} from "svelte/reactivity"
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
 	let {children, data} = $props()
 	
-	type Household = {
-		id: number
-		name: string
-		head: string
-	}
+	let home: Household | undefined = $state() // the current household selected
 	
-	let households: Record<number, Household> = $state({})
-	let home: number | undefined = $state() // the current household selected
-	$effect(() => { const saved = localStorage.getItem("home"); if (saved) home = Number(saved) }) // on page load, load home from the cache // NOTE: this must go before the line below
-	$effect(() => home ? localStorage.setItem("home", String(home)) : localStorage.removeItem("home")) // put it in local storage to make sure the value is persisted across reloads
+	$effect(() => { if (0 < households.size) { // on page load (and after we know about some households) load home from the cache, or pick a random one if it's a new browser // NOTE: this must go before the effect below
+		const saved = households.get(Number(localStorage.getItem("home")))
+		home = saved ? saved : [...households.values()][0]
+	}})
+	$effect(() => { if (home) localStorage.setItem("home", String(home.id)) }) // put it in local storage to make sure the value is persisted across reloads
 	setContext("home", {get value() { return home }}) // make the current hosuehold available on all the pages
 	
-	onMount(async () => {
-		const {data, error} = await supabase
-			.from("households")
-			.select("id, name, head")
-			.order("name")
-		if (error) { console.error("Error in getting households:", error); toast.error("Error in getting households."); return }
-		households = data.reduce((acc, p) => { acc[p.id] = p; return acc }, {} as Record<number, Household>)
-		home = home && home in households ? home : data[0].id // if home is defined and in the set of households already, keep it selected, otherwise pick a random one (the first one)
+	// TODO: home = home && home in households ? home : data[0].id // if home is defined and in the set of households already, keep it selected, otherwise pick a random one (the first one)
+	
+	onMount(() => {
+		localStorage.getItem("home")
 	})
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
 	// home edit
-	// id	id	= edit existing
-	// id	und	= regular page
-	// und	id	= create new (but go back to the id stored in edit as home if canceled)
-	// und	und	= create new
+	// def	def	= edit existing
+	// def	_	= regular page
+	// _	def	= create new (but go back to the id stored in edit as home if canceled
+	// _	_	= create new
 	
 	const householdSchema = y.object({
 		name: y.string().required(),
@@ -51,32 +46,34 @@
 	const householdForm = superForm(defaults(yup(householdSchema)), {SPA: true, validators: yup(householdSchema),
 			async onUpdate({form}) {
 				if (!form.valid) { toast.error("Invalid"); return }
-				home = await (home ? updateHousehold(home, form.data.name) : addHousehold(form.data.name)) // make the change, and go to any new household
+				home = await (home ? updateHousehold(home.id, form.data.name) : addHousehold(form.data.name)) // make the change, and go to any new household
 				edit = undefined // close the editor
 			},
 		}), {form: householdFormData} = householdForm
 	
-	let edit: number | undefined = $state(undefined) // if we're editing a household (creating a new household counts as true)
+	let edit: Household | undefined = $state() // if we're editing a household
 	
-	async function addHousehold(name: string): Promise<number | undefined> {
+	async function addHousehold(name: string): Promise<Household | undefined> {
 		const {data, error} = await supabase
 			.from("households")
 			.insert({name})
 			.select("id, name, head")
 			.single()
 		if (error) { console.error("Error in setting household name:", error); toast.error("Error in setting household name."); return }
-		households[data.id] = data // update the local data
-		return data.id
+		const h = {...data, people: new SvelteMap<number, Person>(), meals: new SvelteMap<number, Meal>()}
+		households.set(data.id, h) // update the local data
+		return h
 	}
 	
-	async function updateHousehold(household: number, name: string): Promise<number | undefined> {
+	async function updateHousehold(household: number, name: string): Promise<Household | undefined> {
 		const {error} = await supabase
 			.from("households")
 			.update({name})
 			.eq("id", household)
 		if (error) { console.error("Error in setting household name:", error); toast.error("Error in setting household name."); return }
-		households[household].name = name // update the local data
-		return household
+		const h = households.get(household)
+		h!.name = name // update the local data
+		return h
 	}
 </script>
 
@@ -91,14 +88,14 @@
 		<div class="grow"></div>
 		{#if home}
 			<div class="dropdown dropdown-end">
-				<div tabindex="0" role="button" class="btn m-1">{households[home]?.name}</div>
+				<div tabindex="0" role="button" class="btn m-1">{home.name}</div>
 				<ul class="dropdown-content menu bg-base-200 rounded-box z-[1] p-1 shadow">
-					{#if home && households[home]?.head == data.session?.user.id}
-						<button class="btn flex-nowrap" onclick={() => {edit = home; $householdFormData = households[home!]}}><Pencil class="h-5" />Edit</button>
+					{#if home.head == data.session?.user.id}
+						<button class="btn flex-nowrap" onclick={() => { edit = home; $householdFormData = {name: home!.name} }}><Pencil class="h-5" />Edit</button>
 					{/if}
-					{#each Object.values(households).filter(household => household.id != home) as household (household.id)}
+					{#each households.values().filter(household => household.id != home?.id) as household (household.id)}
 						<li class="flex flex-nowrap">
-							<button onclick={() => home = household.id} class="btn text-nowrap">{household.name}</button>
+							<button onclick={() => home = household} class="btn text-nowrap">{household.name}</button>
 						</li>
 					{/each}
 					<li><button class="btn flex-nowrap" onclick={() => { edit = home; home = undefined; $householdFormData = {name: ""} }}><Plus class="h-5" />New</button></li>

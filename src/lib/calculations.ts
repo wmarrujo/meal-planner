@@ -1,4 +1,4 @@
-import {solve} from "yalps"
+import {solve, type Model} from "yalps"
 
 // Target Calories Equation from: https://healthyeater.com/how-to-calculate-your-macros
 // Target Protein Equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/7-5-estimating-protein-needs/
@@ -21,7 +21,7 @@ function targetProtein(weight: number, activity: number): number {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-function model() {
+function model(): Model {
 	return {
 		direction: "maximize" as const,
 		objective: "profit",
