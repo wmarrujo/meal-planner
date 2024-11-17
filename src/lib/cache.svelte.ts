@@ -19,17 +19,18 @@ export type Household = {
 
 export type Person = {
 	id: number
+	household: number
 	name: string
 	sex: number
 	height: number
 	weight: number
 	activity: number
 	goal: number
-	household: number
 }
 
 export type Meal = {
 	id: number
+	household: number
 	name: string
 	date: DateTime
 	amount: number
@@ -40,7 +41,7 @@ export type Meal = {
 
 export type Component = {
 	meal: number
-	dish: number // dish reference
+	dish: number
 	amount: number
 	percent: boolean | null
 	restriction: string | null
@@ -93,15 +94,40 @@ const {data: householdsData, error: householdsError} = await supabase
 	.select("id, name, head")
 	.order("name")
 if (householdsError) { console.error("Error in getting households:", householdsError); toast.error("Error in getting households.") }
-else householdsData.forEach(household => households.set(household.id, {...household, people: new SvelteMap(), meals: new SvelteMap()}))
+else householdsData.forEach(household => households.set(household.id, {
+	...household,
+	people: new SvelteMap(),
+	meals: new SvelteMap()
+}))
 
 // People
 const {data: peopleData, error: peopleError} = await supabase
 	.from("people")
-	.select("id, name, sex, height, weight, activity, goal, household")
+	.select("id, household, name, sex, height, weight, activity, goal")
 	.order("name")
 if (peopleError) { console.error("Error in getting people:", peopleError); toast.error("Error in getting people.") }
 else peopleData.forEach(person => households.get(person.household)!.people.set(person.id, person))
 
 // Meals
-// TODO: fill the meals
+const {data: mealsData, error: mealsError} = await supabase
+	.from("meals")
+	.select("id, household, name, day, time, amount, percent, restriction")
+if (mealsError) { console.error("Error in getting meals:", mealsError); toast.error("Error in getting meals.") }
+else mealsData.forEach(meal => households.get(meal.household)!.meals.set(meal.id, {
+	...meal,
+	components: new SvelteMap<number, Component>(),
+	date: DateTime.fromISO(meal.time ? `${meal.day!}T${meal.time}` : meal.day!),
+}))
+
+// Components
+const {data: componentsData, error: componentsError} = await supabase
+	.from("components")
+	.select("meal:meals!inner(id, household), dish, amount, percent, restriction")
+if (componentsError) { console.error("Error in getting meal components:", componentsError); toast.error("Error in getting components of meals.") }
+else componentsData.forEach(component => households.get(component.meal.household)!.meals.get(component.meal.id)!.components.set(component.dish, {
+	...component,
+	meal: component.meal.id,
+}))
+
+// Dishes
+// TODO: implement

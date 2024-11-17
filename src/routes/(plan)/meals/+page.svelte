@@ -1,72 +1,20 @@
 <script lang="ts">
-	import {onMount, getContext} from "svelte"
+	import {getContext} from "svelte"
 	import {supabase} from "$lib/supabase"
 	import {toast} from "svelte-sonner"
-	import type {Enums} from "$schema"
 	import {Plus, X, LockOpen, Equal, ChevronLeft, ChevronRight, EllipsisVertical} from "lucide-svelte"
 	import {DateTime} from "luxon"
-	import {SvelteSet} from "svelte/reactivity"
+	import {SvelteSet, SvelteMap} from "svelte/reactivity"
 	import DishPicker from "./dish-picker.svelte"
+	import {type Household, type Component} from "$lib/cache.svelte"
+	
+	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
 	
 	////////////////////////////////////////////////////////////////////////////////
-	
-	type Meal = {
-		id: number
-		name: string
-		date: DateTime
-		amount: number
-		percent: boolean | null
-		restriction: Enums<"restriction"> | null
-		components: Record<number, Component>
-	}
-	
-	type Component = {
-		meal: number
-		dish: {
-			id: number
-			name: string
-		}
-		amount: number
-		percent: boolean | null
-		restriction: string | null
-	}
-	
-	////////////////////////////////////////////////////////////////////////////////
-	
-	const home = $derived(getContext<{value: number | undefined}>("home").value) // NOTE: because it's inside a guard that makes sure you only see the contents of this page when household is true (from layout), it will be defined whenever you can see anything (just not on mount)
 	
 	let days = $state<SvelteSet<string>>(new SvelteSet([DateTime.now().toISODate()!])) // all the days to show (all at the start of the day), as ISO Dates so they will be equal in the set
 	
-	let meals: Record<number, Meal> = $state({})
-	$effect(() => Object.values(meals).forEach(meal => days.add(meal.date.toISODate()!))) // make sure each of the days that a meal is on are in the days list
-	
-	onMount(async () => {
-		const {data: mealsData, error: mealsError} = await supabase
-			.from("meals")
-			.select("id, name, day, time, amount, percent, restriction")
-			.not("day", "is", null)
-			// TODO: restrict to this household
-		if (mealsError) { console.error("Error in getting meals:", mealsError); toast.error("Error in getting meals."); return }
-		meals = mealsData.reduce((acc, meal) => {
-			acc[meal.id] = {
-				id: meal.id,
-				name: meal.name,
-				date: DateTime.fromISO(meal.time ? `${meal.day!}T${meal.time}` : meal.day!),
-				amount: meal.amount,
-				percent: meal.percent,
-				restriction: meal.restriction,
-				components: [],
-			}
-			return acc
-		}, {} as Record<number, Meal>)
-		
-		const {data: componentsData, error: componentsError} = await supabase
-			.from("components")
-			.select("meal, dish:dishes!inner(id, name), amount, percent, restriction")
-			.in("meal", mealsData.map(meal => meal.id))
-		if (componentsError) { console.error("Error in getting meal components:", componentsError); toast.error("Error in getting components of meals."); return }
-		componentsData.forEach(component => meals[component.meal].components[component.dish.id] = component)
-	})
+	$effect(() => { if (home) { home.meals.values().forEach(meal => days.add(meal.date.toISODate()!)) } else { days.clear(); days.add(DateTime.now().toISODate()!) }}) // make sure each of the days that a meal is on are in the days list, reset with no home
 	
 	////////////////////////////////////////////////////////////////////////////////
 	// DATE
@@ -105,12 +53,12 @@
 			.insert({
 				name: mealNames[Math.floor(Math.random() * mealNames.length)],
 				day: day?.toISODate(),
-				household: home!,
+				household: home!.id,
 			})
-			.select("id, name, day, time, amount, percent, restriction")
+			.select("id, household, name, day, time, amount, percent, restriction")
 			.single()
 		if (error) { console.error("Error in creating new meal:", error); toast.error("Error in creating new meal"); return }
-		meals[data.id] = {...data, date: DateTime.fromISO(data.day!), components: []}
+		home!.meals.set(data.id, {...data, components: new SvelteMap<number, Component>(), date: DateTime.fromISO(data.day!)})
 	}
 	
 	// EDIT
@@ -126,7 +74,7 @@
 			.update({restriction: newRestriction})
 			.eq("id", meal)
 		if (error) { console.error("Error in setting meal restriction:", error); toast.error("Error in setting meal restriction."); return }
-		meals[meal].restriction = newRestriction
+		home!.meals.get(meal)!.restriction = newRestriction
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
@@ -136,7 +84,7 @@
 			.update({amount})
 			.eq("id", meal)
 		if (error) { console.error("Error in setting meal restriction amount:", error); toast.error("Error in setting meal restriction amount."); return }
-		meals[meal].amount = amount
+		home!.meals.get(meal)!.amount = amount
 	}
 	
 	async function setMealRestrictionPercent(meal: number, percent: boolean) {
@@ -145,7 +93,7 @@
 			.update({percent})
 			.eq("id", meal)
 		if (error) { console.error("Error in setting meal restriction percent:", error); toast.error("Error in setting meal restriction percent."); return }
-		meals[meal].percent = percent
+		home!.meals.get(meal)!.percent = percent
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
@@ -159,7 +107,7 @@
 			.delete()
 			.eq("id", meal)
 		if (error) { console.error("Error in removing meal:", error); toast.error("Error in removing meal."); return }
-		delete meals[meal]
+		home!.meals.delete(meal)
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -172,10 +120,10 @@
 		const {data, error} = await supabase
 			.from("components")
 			.insert({meal, dish})
-			.select("meal, dish:dishes!inner(id, name), amount, percent, restriction")
+			.select("meal, dish, amount, percent, restriction")
 			.single()
 		if (error) { console.error("Error in adding meal component:", error); toast.error("Error in adding meal component."); return }
-		meals[meal].components[dish] = data
+		home!.meals.get(meal)!.components.set(dish, data)
 	}
 	
 	// EDIT
@@ -192,7 +140,7 @@
 			.eq("meal", meal)
 			.eq("dish", dish)
 		if (error) { console.error("Error in setting meal component restriction:", error); toast.error("Error in setting meal component restriction."); return }
-		meals[meal].components[dish].restriction = newRestriction
+		home!.meals.get(meal)!.components.get(dish)!.restriction = newRestriction
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
@@ -203,7 +151,7 @@
 			.eq("meal", meal)
 			.eq("dish", dish)
 		if (error) { console.error("Error in setting meal component restriction amount:", error); toast.error("Error in setting meal component restriction amount."); return }
-		meals[meal].components[dish].amount = amount
+		home!.meals.get(meal)!.components.get(dish)!.amount = amount
 	}
 	
 	async function toggleComponentRestrictionPercent(meal: number, dish: number, percent: boolean | null) {
@@ -215,7 +163,7 @@
 			.eq("meal", meal)
 			.eq("dish", dish)
 		if (error) { console.error("Error in setting meal component restriction percent:", error); toast.error("Error in setting meal component restriction percent."); return }
-		meals[meal].components[dish].percent = newPercent
+		home!.meals.get(meal)!.components.get(dish)!.percent = newPercent
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
@@ -230,7 +178,7 @@
 			.eq("meal", meal)
 			.eq("dish", dish)
 		if (error) { console.error("Error in removing meal component:", error); toast.error("Error in removing meal component."); return }
-		delete meals[meal].components[dish]
+		home!.meals.get(meal)!.components.delete(dish)
 	}
 </script>
 
@@ -255,7 +203,7 @@
 				<div class="flex border-r border-base-content p-2 min-w-14 justify-center items-center sticky left-0 bg-base-100">
 					<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(day)}</span>
 				</div>
-				{#each Object.values(meals).filter(meal => meal.date.startOf("day").equals(day)).sort((a, b) => a.date.diff(b.date, "minutes").as("minutes")) as meal (meal.id)}
+				{#each [...home!.meals.values().filter(meal => meal.date.startOf("day").equals(day))].sort((a, b) => a.date.diff(b.date, "minutes").as("minutes")) as meal (meal.id)}
 					<div class="p-2 border-r border-base-content border-dotted group">
 						<div class="flex items-center gap-2 mb-5">
 							<input type="text" value={meal.name} class="input text-xl p-1" />

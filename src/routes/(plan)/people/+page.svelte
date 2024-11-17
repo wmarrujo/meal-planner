@@ -3,13 +3,37 @@
 	import {supabase} from "$lib/supabase"
 	import {getContext} from "svelte"
 	import {toast} from "svelte-sonner"
-	import {households, type Household} from "$lib/cache.svelte"
+	import {type Household} from "$lib/cache.svelte"
+	
+	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
 	
 	////////////////////////////////////////////////////////////////////////////////
-	
-	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: because it's inside a guard that makes sure you only see the contents of this page when household is true (from layout), it will be defined whenever you can see anything (just not on mount)
-	
+	// PERSON
 	////////////////////////////////////////////////////////////////////////////////
+	
+	// ADD
+	
+	const bros = ["Brohan", "Brochill", "Broseph von Brohammer", "Brotastic Broski", "Brosicle", "Brofessor Brobody", "Han Brolo", "Broseidon Lord of the Brocean", "Broba Fett", "Brohatma Ghandi", "Brohemian", "Bromosapien", "Broseph Stalin", "Abroham Lincoln", "Brorack Brobama", "Bro Biden", "Broranosaurus rex", "Brohemoth", "Broseph Gordon Levitt", "Brobi-wan Kenobi", "Marco Brolo", "Edgar Allan Bro", "Brozo the Clown", "C-3P Bro", "Frosty the Broman", "G.I. Bro", "Brose Marti", "The Higgs Broson", "Brodo Baggins", "Bilbro Baggins", "Teddy Broosevelt", "Franklin Broosevelt", "Broam Chomsky", "Brozilla", "Napoleon Bronaparte", "Brostradamos", "Quasibrodo", "Jon Bon Brovi", "Brobe Bryant", "Mr. Broboto", "Brolin Powell", "Brofi Annan", "Conan Bro'Brien", "Arnold Brozenegger", "Bro Yun Fat", "Pierce Brosnan", "Samuel Bro Jackson", "Quentin Broantino", "Clive Browen", "Elvis Brosely", "Demi Brovato", "Selena Bromez", "Michael Broson", "Ton Broosendaal", "Broctor Death", "Spiderbro", "Doctor Broctopus", "Bro Nye the Science Guy", "Bromethius", "Bromance", "Broland of Gilead", "Bro Jackson", "Indiana Brones", "Big Lebroski", "Angelina Broli", "Vincent van Bro", "Bromer Simpson", "Bromeo", "Kurt Brobain", "Broald Dahl", "Scarlett Brohansen"] // https://github.com/BSVino/DoubleAction/blame/master/mp/src/game/server/sdk/bots/bot_main.cpp#L92
+	
+	async function addPerson() {
+		const {data, error} = await supabase
+			.from("people")
+			.insert({
+				name: bros[Math.floor(Math.random() * bros.length)],
+				sex: Math.floor(Math.random() * 2),
+				height: Math.floor(Math.random() * 261 + 12), // 12 <= height < 273
+				weight: Math.floor(Math.random() * 636), // 0 <= weight < 636
+				activity: Math.floor(Math.random() * 5),
+				goal: Math.floor(Math.random() * 5 - 2),
+				household: home!.id,
+			})
+			.select("id, household, name, sex, height, weight, activity, goal")
+			.single()
+		if (error) { console.error("Error in creating new person:", error); toast.error("Error in creating new person."); return }
+		home!.people.set(data.id, data)
+	}
+	
+	// EDIT
 	
 	async function setName(person: number, name: string) {
 		const {error} = await supabase
@@ -65,27 +89,9 @@
 		home!.people.get(person)!.goal = goal
 	}
 	
-	////////////////////////////////////////////////////////////////////////////////
+	// REMOVE
 	
-	const bros = ["Brohan", "Brochill", "Broseph von Brohammer", "Brotastic Broski", "Brosicle", "Brofessor Brobody", "Han Brolo", "Broseidon Lord of the Brocean", "Broba Fett", "Brohatma Ghandi", "Brohemian", "Bromosapien", "Broseph Stalin", "Abroham Lincoln", "Brorack Brobama", "Bro Biden", "Broranosaurus rex", "Brohemoth", "Broseph Gordon Levitt", "Brobi-wan Kenobi", "Marco Brolo", "Edgar Allan Bro", "Brozo the Clown", "C-3P Bro", "Frosty the Broman", "G.I. Bro", "Brose Marti", "The Higgs Broson", "Brodo Baggins", "Bilbro Baggins", "Teddy Broosevelt", "Franklin Broosevelt", "Broam Chomsky", "Brozilla", "Napoleon Bronaparte", "Brostradamos", "Quasibrodo", "Jon Bon Brovi", "Brobe Bryant", "Mr. Broboto", "Brolin Powell", "Brofi Annan", "Conan Bro'Brien", "Arnold Brozenegger", "Bro Yun Fat", "Pierce Brosnan", "Samuel Bro Jackson", "Quentin Broantino", "Clive Browen", "Elvis Brosely", "Demi Brovato", "Selena Bromez", "Michael Broson", "Ton Broosendaal", "Broctor Death", "Spiderbro", "Doctor Broctopus", "Bro Nye the Science Guy", "Bromethius", "Bromance", "Broland of Gilead", "Bro Jackson", "Indiana Brones", "Big Lebroski", "Angelina Broli", "Vincent van Bro", "Bromer Simpson", "Bromeo", "Kurt Brobain", "Broald Dahl", "Scarlett Brohansen"] // https://github.com/BSVino/DoubleAction/blame/master/mp/src/game/server/sdk/bots/bot_main.cpp#L92
-	
-	async function addPerson() {
-		const {data, error} = await supabase
-			.from("people")
-			.insert({
-				name: bros[Math.floor(Math.random() * bros.length)],
-				sex: Math.floor(Math.random() * 2),
-				height: Math.floor(Math.random() * 261 + 12), // 12 <= height < 273
-				weight: Math.floor(Math.random() * 636), // 0 <= weight < 636
-				activity: Math.floor(Math.random() * 5),
-				goal: Math.floor(Math.random() * 5 - 2),
-				household: home!.id,
-			})
-			.select("id, name, sex, height, weight, activity, goal, household")
-			.single()
-		if (error) { console.error("Error in creating new person:", error); toast.error("Error in creating new person."); return }
-		home!.people.set(data.id, data)
-	}
+	// TODO: remove person
 </script>
 
 <table class="table table-fixed table-pin-rows table-pin-cols w-fit [&>*>tr>td]:border-x [&>*>tr>td]:border-base-200  [&>tbody>tr]:border-y-0">
