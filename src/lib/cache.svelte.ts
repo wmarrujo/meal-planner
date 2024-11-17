@@ -50,30 +50,31 @@ export type Component = {
 export type Dish = {
 	id: number
 	name: string
-	ingredients: Array<Ingredient> | null
+	ingredients: SvelteMap<number, Ingredient>
 	manager: string | null
 }
 
 export type Ingredient = {
 	food: number
 	amount: number
-	serving: Serving | null
-	servingOptions?: Array<Serving>
-}
-
-export type Serving = {
-	id: number
-	amount_of_unit: number
-	unit: string | null
-	modifier: string | null
+	serving: number | null
 }
 
 export type Food = {
 	id: number
 	name: string
+	servings: SvelteMap<number, Serving> // the serving options available
 	by_volume: boolean
-	calories: number
-	protein: number
+	calories: number | null
+	protein: number | null
+}
+
+export type Serving = {
+	id: number
+	food: number
+	amount_of_unit: number
+	unit: string | null
+	modifier: string | null
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -87,6 +88,8 @@ export const foods: SvelteMap<number, Food> = $state(new SvelteMap())
 ////////////////////////////////////////////////////////////////////////////////
 // INITIALIZATION
 ////////////////////////////////////////////////////////////////////////////////
+
+// load all the household data
 
 // Households
 const {data: householdsData, error: householdsError} = await supabase
@@ -115,7 +118,7 @@ const {data: mealsData, error: mealsError} = await supabase
 if (mealsError) { console.error("Error in getting meals:", mealsError); toast.error("Error in getting meals.") }
 else mealsData.forEach(meal => households.get(meal.household)!.meals.set(meal.id, {
 	...meal,
-	components: new SvelteMap<number, Component>(),
+	components: new SvelteMap(),
 	date: DateTime.fromISO(meal.time ? `${meal.day!}T${meal.time}` : meal.day!),
 }))
 
@@ -129,5 +132,42 @@ else componentsData.forEach(component => households.get(component.meal.household
 	meal: component.meal.id,
 }))
 
+// preload the household data with all the components it needs to make calculations
+
 // Dishes
-// TODO: implement
+const {data: dishesData, error: dishesError} = await supabase
+	.from("dishes")
+	.select("id, name, manager")
+	.in("id", [...households.values().flatMap(household => household.meals.values().flatMap(meal => meal.components.keys()))])
+if (dishesError) { console.error("Error in getting dishes:", dishesError); toast.error("Error in getting dishes.") }
+else dishesData.forEach(dish => dishes.set(dish.id, {
+	...dish,
+	ingredients: new SvelteMap()
+}))
+
+// Ingredients
+const {data: ingredientsData, error: ingredientsError} = await supabase
+	.from("ingredients")
+	.select("dish, food, serving, amount")
+	.in("dish", [...dishes.keys()])
+if (ingredientsError) { console.error("Error in getting ingredients:", ingredientsError); toast.error("Error in getting ingredients.") }
+else ingredientsData.forEach(ingredient => dishes.get(ingredient.dish)!.ingredients.set(ingredient.food, ingredient))
+
+// Foods
+const {data: foodsData, error: foodsError} = await supabase
+	.from("foods")
+	.select("id, name, by_volume, calories, protein")
+	.in("id", [...dishes.values().flatMap(dish => dish.ingredients.keys())])
+if (foodsError) { console.error("Error in getting foods:", foodsError); toast.error("Error in getting foods.") }
+else foodsData.forEach(food => foods.set(food.id, {
+	...food,
+	servings: new SvelteMap()
+}))
+
+// Servings
+const {data: servingsData, error: servingsError} = await supabase
+	.from("servings")
+	.select("food, id, amount_of_unit, unit, modifier")
+	.in("food", [...foods.keys()])
+if (servingsError) { console.error("Error populating servings:", servingsError) }
+else servingsData.forEach(serving => foods.get(serving.food)!.servings.set(serving.id, serving))

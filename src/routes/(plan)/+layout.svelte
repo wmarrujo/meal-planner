@@ -9,7 +9,7 @@
 	import * as y from "yup"
 	import {superForm, defaults} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
-	import {households, type Household, type Person, type Meal} from "$lib/cache.svelte.js"
+	import {households, type Household} from "$lib/cache.svelte.js"
 	import {SvelteMap} from "svelte/reactivity"
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -60,7 +60,7 @@
 			.select("id, name, head")
 			.single()
 		if (error) { console.error("Error in setting household name:", error); toast.error("Error in setting household name."); return }
-		const h = {...data, people: new SvelteMap<number, Person>(), meals: new SvelteMap<number, Meal>()}
+		const h = {...data, people: new SvelteMap(), meals: new SvelteMap()} as Household
 		households.set(data.id, h) // update the local data
 		return h
 	}

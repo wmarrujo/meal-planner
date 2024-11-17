@@ -1,81 +1,17 @@
 <script lang="ts">
 	import {supabase} from "$lib/supabase"
-	import {onMount} from "svelte"
 	import * as y from "yup"
-	import {superForm, defaults, setMessage, setError} from "sveltekit-superforms"
+	import {superForm, defaults, setError} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
 	import {Plus, X} from "lucide-svelte"
 	import FoodPicker from "./food-picker.svelte"
 	import {toast} from "svelte-sonner"
-	
-	////////////////////////////////////////////////////////////////////////////////
-	
-	type Dish = {
-		id: number
-		name: string
-		ingredients: Array<Ingredient> | null
-		manager: string | null
-	}
-	
-	type Ingredient = {
-		food: {
-			id: number
-			name: string
-			by_volume: boolean
-		}
-		amount: number
-		serving: {
-			id: number
-			amount_of_unit: number
-			unit: string | null
-			modifier: string | null
-		} | null
-		servingOptions?: Array<{
-			id: number
-			amount_of_unit: number
-			unit: string | null
-			modifier: string | null
-		}>
-	}
+	import {dishes, foods, type Dish} from "$lib/cache.svelte"
+	import {SvelteMap} from "svelte/reactivity"
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
 	let {data} = $props()
-	
-	let dishes: Record<number, Dish> = $state({})
-	
-	onMount(async () => {
-		const {data: dishesData, error: dishesError} = await supabase
-			.from("dishes")
-			.select("id, name, manager")
-		if (dishesError) { console.error("Error in getting dishes:", dishesError); return }
-		
-		dishes = dishesData.reduce((acc, dish) => {
-			acc[dish.id] = {
-				id: dish.id,
-				name: dish.name,
-				ingredients: null,
-				manager: dish.manager,
-			}
-			return acc
-		}, {} as Record<number, Dish>)
-	})
-	
-	async function populateIngredients(dish: Dish) {
-		const {data: ingredientsData, error: ingredientsError} = await supabase
-			.from("ingredients")
-			.select("food:foods!inner(id, name, by_volume), serving:servings(id, amount_of_unit, unit, modifier), amount")
-			.eq("dish", dish.id)
-		if (ingredientsError) { console.error("Error in getting dishes:", ingredientsError); return }
-		dish.ingredients = ingredientsData
-		
-		const {data: servingsData, error: servingsError} = await supabase
-			.from("servings")
-			.select("food, id, amount_of_unit, unit, modifier")
-			.in("food", ingredientsData.map(ingredient => ingredient.food.id))
-		if (servingsError) { console.error("Error populating servings:", servingsError) }
-		dish.ingredients.forEach(ingredient => ingredient.servingOptions = (servingsData ?? []).filter(serving => serving.food == ingredient.food.id))
-	}
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
@@ -93,15 +29,7 @@
 					.select("id, name, manager")
 					.single()
 				if (error) { console.error("Error in inserting dish:", error); setError(form, "Error in inserting dish."); toast.error("Failed to insert dish.") }
-				else {
-					setMessage(form, "Inserted dish.")
-					dishes[data.id] = {
-						id: data.id,
-						name: data.name,
-						ingredients: null,
-						manager: data.manager,
-					}
-				}
+				else dishes.set(data.id, {...data, ingredients: new SvelteMap()})
 			},
 		}), {form: newDishFormData} = newDishForm
 	
@@ -126,10 +54,7 @@
 					.select("food:foods!inner(id, name, by_volume), serving:servings(id, amount_of_unit, unit, modifier), amount")
 					.single()
 				if (error) { console.error("Error in inserting ingredient:", error); setError(form, "Error in inserting ingredient."); toast.error("Failed to insert ingredient.") }
-				else {
-					setMessage(form, "Inserted ingredient.")
-					selected.ingredients!.push(data)
-				}
+				// else selected.ingredients!.push(data) // FIXME: will push the wrong type
 			},
 		}), {form: newIngredientFormData} = newIngredientForm
 	
@@ -140,7 +65,7 @@
 			.eq("dish", dish)
 			.eq("food", food)
 		if (error) { console.error("Error deleting data:", error); toast.error("Failed to remove ingredient."); return }
-		dishes[dish].ingredients = dishes[dish].ingredients!.filter(ingredient => ingredient.food.id != food)
+		dishes.get(dish)!.ingredients.delete(food)
 	}
 	
 	async function setIngredientAmount(dish: number, food: number, amount: number) {
@@ -150,7 +75,7 @@
 			.eq("dish", dish)
 			.eq("food", food)
 		if (error) { console.error("Error updating ingredient amount:", error); toast.error("Failed to update ingredient amount."); return }
-		dishes[dish].ingredients!.find(ingredient => ingredient.food.id == food)!.amount = amount
+		dishes.get(dish)!.ingredients.get(food)!.amount = amount
 	}
 	
 	async function setIngredientServing(dish: number, food: number, serving: number | null) {
@@ -160,8 +85,7 @@
 			.eq("dish", dish)
 			.eq("food", food)
 		if (error) { console.error("Error updating ingredient amount:", error); toast.error("Failed to update ingredient amount."); return }
-		dishes[dish].ingredients!.find(ingredient => ingredient.food.id == food)!.serving =
-			serving ? ((dishes[dish].ingredients!.find(ingredient => ingredient.food.id == food)!.servingOptions ?? []).find(s => s.id = serving) ?? null) : null
+		dishes.get(dish)!.ingredients.get(food)!.serving = serving
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -172,8 +96,8 @@
 <main class="flex h-[calc(100vh-4rem)]">
 	<div class="flex gap-4 p-4 grow overflow-y-scroll">
 		<!-- TODO: make a search bar -->
-		{#each Object.values(dishes) as dish (dish.id)}
-			<button onclick={() => { selected = dish; populateIngredients(dish) }} class="card {dish.manager == data.session?.user.id ? "bg-base-300" : "bg-base-200"} text-base-content w-64 shadow-xl h-min">
+		{#each dishes.values() as dish (dish.id)}
+			<button onclick={() => { selected = dish }} class="card {dish.manager == data.session?.user.id ? "bg-base-300" : "bg-base-200"} text-base-content w-64 shadow-xl h-min">
 				<div class="card-body">
 					<div class="card-title">
 						<h2 class="card-title">{dish.name}</h2>
@@ -203,39 +127,41 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each selected.ingredients as ingredient (ingredient.food)}
+						{#each selected.ingredients.values() as ingredient (ingredient.food)}
+							{@const food = foods.get(ingredient.food)!}
+							{@const serving = ingredient.serving ? food.servings.get(ingredient.serving)! : undefined}
 							<tr class="group">
 								<th class="p-1">
-									<span class="grow">{ingredient.food.name}</span>
+									<span class="grow">{food.name}</span>
 								</th>
 								<td class="text-nowrap p-1">
 									<div class="flex items-center">
 										{#if selected.manager == data.session?.user.id}
-											<input type="number" value={ingredient.amount} onchange={event => setIngredientAmount(selected!.id, ingredient.food.id, Number(event.currentTarget.value))} class="input px-0 text-center text-lg w-12">
+											<input type="number" value={ingredient.amount} onchange={event => setIngredientAmount(selected!.id, food.id, Number(event.currentTarget.value))} class="input px-0 text-center text-lg w-12">
 										{:else}
 											<span class="text-center align-middle text-lg w-12">{ingredient.amount}</span>
 										{/if}
 										<div class="dropdown">
 											{#if selected.manager == data.session?.user.id}
 												<div role="button" tabindex={0} class="btn btn-ghost outline-none flex flex-nowrap">
-													<span>{ingredient.serving ? ingredient.serving.unit : (ingredient.food.by_volume ? "ml" : "g")}</span>
-													{#if ingredient.serving?.modifier}<span class="opacity-50">ingredient.serving?.modifier</span>{/if}
+													<span>{serving ? serving.unit : (food.by_volume ? "ml" : "g")}</span>
+													{#if serving?.modifier}<span class="opacity-50">ingredient.serving?.modifier</span>{/if}
 												</div>
 												<ul class="dropdown-content menu bg-base-300 z-10 w-full rounded-b-lg p-0">
-													<li><button onclick={() => setIngredientServing(selected!.id, ingredient.food.id, null)}>{ingredient.food.by_volume ? "ml" : "g"}</button></li>
-													{#each ingredient.servingOptions ?? [] as serving (serving.id)}
-														<li><button onclick={() => setIngredientServing(selected!.id, ingredient.food.id, serving.id)}>{serving.unit}</button></li>
+													<li><button onclick={() => setIngredientServing(selected!.id, food.id, null)}>{food.by_volume ? "ml" : "g"}</button></li>
+													{#each food.servings.values() ?? [] as serving (serving.id)}
+														<li><button onclick={() => setIngredientServing(selected!.id, food.id, serving.id)}>{serving.unit}</button></li>
 													{/each}
 												</ul>
 											{:else}
-												<span>{ingredient.food.by_volume ? "ml" : "g"}</span>
+												<span>{food.by_volume ? "ml" : "g"}</span>
 											{/if}
 										</div>
 									</div>
 								</td>
 								{#if selected.manager == data.session?.user.id}
 									<td class="p-1">
-										<button onclick={() => removeIngredient(selected!.id, ingredient.food.id)} class="btn btn-sm btn-square hover:bg-error invisible group-hover:visible"><X /></button>
+										<button onclick={() => removeIngredient(selected!.id, food.id)} class="btn btn-sm btn-square hover:bg-error invisible group-hover:visible"><X /></button>
 									</td>
 								{/if}
 							</tr>

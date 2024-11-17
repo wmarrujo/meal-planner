@@ -6,7 +6,7 @@
 	import {DateTime} from "luxon"
 	import {SvelteSet, SvelteMap} from "svelte/reactivity"
 	import DishPicker from "./dish-picker.svelte"
-	import {type Household, type Component} from "$lib/cache.svelte"
+	import {dishes, type Household} from "$lib/cache.svelte"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
 	
@@ -58,10 +58,19 @@
 			.select("id, household, name, day, time, amount, percent, restriction")
 			.single()
 		if (error) { console.error("Error in creating new meal:", error); toast.error("Error in creating new meal"); return }
-		home!.meals.set(data.id, {...data, components: new SvelteMap<number, Component>(), date: DateTime.fromISO(data.day!)})
+		home!.meals.set(data.id, {...data, components: new SvelteMap(), date: DateTime.fromISO(data.day!)})
 	}
 	
 	// EDIT
+	
+	async function setMealName(meal: number, name: string) {
+		const {error} = await supabase
+			.from("meals")
+			.update({name})
+			.eq("id", meal)
+		if (error) { console.error("Error in setting meal name:", error); toast.error("Error in setting meal name."); return }
+		home!.meals.get(meal)!.name = name
+	}
 	
 	async function toggleMealRestriction(meal: number, existingRestriction: string | null) {
 		const newRestriction // ||: unrestricted, =, <=, >= :||
@@ -206,7 +215,7 @@
 				{#each [...home!.meals.values().filter(meal => meal.date.startOf("day").equals(day))].sort((a, b) => a.date.diff(b.date, "minutes").as("minutes")) as meal (meal.id)}
 					<div class="p-2 border-r border-base-content border-dotted group">
 						<div class="flex items-center gap-2 mb-5">
-							<input type="text" value={meal.name} class="input text-xl p-1" />
+							<input type="text" value={meal.name} onchange={event => setMealName(meal.id, event.currentTarget.value)} class="input text-xl p-1" />
 							<button onclick={() => toggleMealRestriction(meal.id, meal.restriction)} class="btn btn-square btn-sm">
 								{#if meal.restriction == "exactly"}
 									<Equal />
@@ -229,9 +238,10 @@
 							<button onclick={() => removeMeal(meal.id)} class="btn btn-square btn-sm invisible group-hover:visible hover:bg-error"><X /></button>
 						</div>
 						<div class="grid grid-cols-[1fr_repeat(4,auto)] group/components gap-2 pl-4">
-							{#each Object.values(meal.components) as component (component.dish)}
-								<span class="text-lg flex items-center">{component.dish.name}</span>
-								<button onclick={() => toggleComponentRestriction(meal.id, component.dish.id, component.restriction)} class="btn btn-square btn-sm">
+							{#each meal.components.values() as component (component.dish)}
+								{@const dish = dishes.get(component.dish)!}
+								<span class="text-lg flex items-center">{dish.name}</span>
+								<button onclick={() => toggleComponentRestriction(meal.id, dish.id, component.restriction)} class="btn btn-square btn-sm">
 									{#if component.restriction == "exactly"}
 										<Equal />
 									{:else if component.restriction == "no_less_than"}
@@ -242,8 +252,8 @@
 										<LockOpen />
 									{/if}
 								</button>
-								<input type="number" value={component.amount} onchange={event => setComponentRestrictionAmount(meal.id, component.dish.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!component.restriction && "invisible"}" />
-								<button onclick={() => toggleComponentRestrictionPercent(meal.id, component.dish.id, component.percent)} class="btn btn-sm w-20 {!component.restriction && "invisible"}">
+								<input type="number" value={component.amount} onchange={event => setComponentRestrictionAmount(meal.id, dish.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!component.restriction && "invisible"}" />
+								<button onclick={() => toggleComponentRestrictionPercent(meal.id, dish.id, component.percent)} class="btn btn-sm w-20 {!component.restriction && "invisible"}">
 									{#if component.percent === null}
 										servings
 									{:else if component.percent}
@@ -252,7 +262,7 @@
 										kcal
 									{/if}
 								</button>
-								<button onclick={() => removeComponent(meal.id, component.dish.id)} class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><X /></button>
+								<button onclick={() => removeComponent(meal.id, dish.id)} class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><X /></button>
 							{/each}
 						</div>
 						<DishPicker class="pt-2" onselect={dish => addComponent(meal.id, dish)} />
