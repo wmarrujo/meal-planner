@@ -329,32 +329,38 @@ export type Database = {
       people: {
         Row: {
           activity: number
+          age: number
           goal: number
           height: number
           household: number
           id: number
           name: string
           sex: number
+          visiting: boolean
           weight: number
         }
         Insert: {
           activity: number
+          age: number
           goal: number
           height: number
           household: number
           id?: number
           name: string
           sex: number
+          visiting?: boolean
           weight: number
         }
         Update: {
           activity?: number
+          age?: number
           goal?: number
           height?: number
           household?: number
           id?: number
           name?: string
           sex?: number
+          visiting?: boolean
           weight?: number
         }
         Relationships: [

@@ -2,8 +2,7 @@ import {supabase} from "$lib/supabase"
 import type {Enums} from "$schema"
 import {DateTime} from "luxon"
 import {toast} from "svelte-sonner"
-import {SvelteMap} from "svelte/reactivity"
-import {setContext} from "svelte"
+import {SvelteMap, SvelteSet} from "svelte/reactivity"
 
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES
@@ -15,28 +14,36 @@ export type Household = {
 	head: string
 	people: SvelteMap<number, Person>
 	meals: SvelteMap<number, Meal>
+	solution: Map<number, Map<number, number>> // Map<Meal.id, Map<Dish.id, servings>>
 }
 
 export type Person = {
 	id: number
 	household: number
 	name: string
+	age: number
 	sex: number
 	height: number
 	weight: number
 	activity: number
 	goal: number
+	visiting: boolean // if this person should be in the meals of this household by default
+	// TODO: do target priorities by person
 }
 
 export type Meal = {
 	id: number
 	household: number
 	name: string
+	day: string | null
+	time: string | null
 	date: DateTime
 	amount: number
 	percent: boolean | null
 	restriction: Enums<"restriction"> | null
 	components: SvelteMap<number, Component>
+	blacklist: SvelteSet<number> // exclude these people from the meal when they otherwise would be (only applies to non-visitors)
+	whitelist: SvelteSet<number> // include these people in the meal when they otherwise wouldn't be (only applies to visitors)
 }
 
 export type Component = {
@@ -100,13 +107,14 @@ if (householdsError) { console.error("Error in getting households:", householdsE
 else householdsData.forEach(household => households.set(household.id, {
 	...household,
 	people: new SvelteMap(),
-	meals: new SvelteMap()
+	meals: new SvelteMap(),
+	solution: new SvelteMap(),
 }))
 
 // People
 const {data: peopleData, error: peopleError} = await supabase
 	.from("people")
-	.select("id, household, name, sex, height, weight, activity, goal")
+	.select("id, household, name, age, sex, height, weight, activity, goal, visiting")
 	.order("name")
 if (peopleError) { console.error("Error in getting people:", peopleError); toast.error("Error in getting people.") }
 else peopleData.forEach(person => households.get(person.household)!.people.set(person.id, person))
@@ -120,6 +128,8 @@ else mealsData.forEach(meal => households.get(meal.household)!.meals.set(meal.id
 	...meal,
 	components: new SvelteMap(),
 	date: DateTime.fromISO(meal.time ? `${meal.day!}T${meal.time}` : meal.day!),
+	whitelist: new SvelteSet(), // TODO: add to database
+	blacklist: new SvelteSet(), // TODO: add to database
 }))
 
 // Components

@@ -80,10 +80,15 @@
 <div>
 	<nav class="gap-2 navbar group">
 		<h1><a href="{base}/" class="btn btn-ghost">Meal-Planner</a></h1>
+		<div class="h-10 w-px bg-base-300"></div>
 		<ul class="flex gap-2">
 			<li><a href="{base}/people" class="btn btn-ghost {$page.route.id?.startsWith("/people") && "underline"}">People</a></li>
 			<li><a href="{base}/dishes" class="btn btn-ghost {$page.route.id?.startsWith("/dishes") && "underline"}">Dishes</a></li>
 			<li><a href="{base}/meals" class="btn btn-ghost {$page.route.id?.startsWith("/meals") && "underline"}">Meals</a></li>
+			<div class="h-10 w-px bg-base-300"></div>
+			<li><a href="{base}/groceries" class="btn btn-ghost {$page.route.id?.startsWith("/groceries") && "underline"}">Groceries</a></li>
+			<li><a href="{base}/cooking" class="btn btn-ghost {$page.route.id?.startsWith("/cooking") && "underline"}">Cooking</a></li>
+			<li><a href="{base}/eating" class="btn btn-ghost {$page.route.id?.startsWith("/eating") && "underline"}">Eating</a></li>
 		</ul>
 		<div class="grow"></div>
 		{#if home}

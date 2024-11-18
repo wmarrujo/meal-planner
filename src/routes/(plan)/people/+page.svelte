@@ -20,6 +20,7 @@
 			.from("people")
 			.insert({
 				name: bros[Math.floor(Math.random() * bros.length)],
+				age: Math.floor(Math.random() * 140), // 0 <= age < 140
 				sex: Math.floor(Math.random() * 2),
 				height: Math.floor(Math.random() * 261 + 12), // 12 <= height < 273
 				weight: Math.floor(Math.random() * 636), // 0 <= weight < 636
@@ -27,7 +28,7 @@
 				goal: Math.floor(Math.random() * 5 - 2),
 				household: home!.id,
 			})
-			.select("id, household, name, sex, height, weight, activity, goal")
+			.select("id, household, name, age, sex, height, weight, activity, goal, visiting")
 			.single()
 		if (error) { console.error("Error in creating new person:", error); toast.error("Error in creating new person."); return }
 		home!.people.set(data.id, data)
@@ -42,6 +43,15 @@
 			.eq("id", person)
 		if (error) { console.error("Error in setting person name:", error); toast.error("Error in setting name."); return }
 		home!.people.get(person)!.name = name
+	}
+	
+	async function setAge(person: number, age: number) {
+		const {error} = await supabase
+			.from("people")
+			.update({age})
+			.eq("id", person)
+		if (error) { console.error("Error in setting person age:", error); toast.error("Error in setting age."); return }
+		home!.people.get(person)!.age = age
 	}
 	
 	async function setSex(person: number, sex: number) {
@@ -109,6 +119,16 @@
 		</tr>
 	</thead>
 	<tbody>
+		<tr>
+			<th class="text-right">Age</th>
+			{#each home!.people.values() as person (person.id)}
+				<td>
+					<input type="number" value={person.age} onchange={event => setAge(person.id, Number(event.currentTarget.value))} class="w-2/3 pr-0 text-lg text-right input input-sm">
+					<span class="w-1/3 text-left">yrs</span>
+				</td>
+			{/each}
+			<td></td>
+		</tr>
 		<tr>
 			<th class="text-right">Sex</th>
 			{#each home!.people.values() as person (person.id)}
