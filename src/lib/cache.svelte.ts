@@ -79,6 +79,7 @@ export type Food = {
 export type Serving = {
 	id: number
 	food: number
+	amount: number
 	amount_of_unit: number
 	unit: string | null
 	modifier: string | null
@@ -177,7 +178,7 @@ else foodsData.forEach(food => foods.set(food.id, {
 // Servings
 const {data: servingsData, error: servingsError} = await supabase
 	.from("servings")
-	.select("food, id, amount_of_unit, unit, modifier")
+	.select("food, id, amount, amount_of_unit, unit, modifier")
 	.in("food", [...foods.keys()])
 if (servingsError) { console.error("Error populating servings:", servingsError) }
 else servingsData.forEach(serving => foods.get(serving.food)!.servings.set(serving.id, serving))

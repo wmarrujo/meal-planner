@@ -1,5 +1,6 @@
 import {solve, type Model} from "yalps"
-import type {Household, Meal} from "$lib/cache.svelte"
+import {dishes, foods} from "$lib/cache.svelte"
+import type {Household, Person, Meal} from "$lib/cache.svelte"
 
 // Target Calories Equation from: https://healthyeater.com/how-to-calculate-your-macros
 // Target Protein Equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/7-5-estimating-protein-needs/
@@ -9,7 +10,7 @@ import type {Household, Meal} from "$lib/cache.svelte"
 // TARGETS
 ////////////////////////////////////////////////////////////////////////////////
 
-type Targets = {
+type Nutrition = {
 	calories: number
 	protein: number
 }
@@ -28,25 +29,59 @@ function targetProtein(weight: number, activity: number): number {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// CONSTANTS
+////////////////////////////////////////////////////////////////////////////////
+
+// type Constants = {
+// 	// Targets
+// 	calorie_target: number // ℂ // the target amount of calories (kcal) for the day
+// 	protein_target: number // ℙ // the target amount of protein (g) for the day
+// 	// Weights
+// 	calorie_weight: number // ⧫_c // how much to care about hitting the calorie target
+// 	protein_weight: number // ⧫_p // how much to care about hitting the protein target
+// 	// Sets
+// 	meals: Array<number> // Array<Meal.id> // M // the set of meals in the day
+// 	// Maps
+// 	dishesInMeals: Map<number, Array<number>> // Map<Meal.id, Array<Dish.id>> // D_m // the set of dishes in meal m
+// 	// C_d // the amount of calories for 1 serving of dish d
+// 	// P_d // the amount of protein for 1 serving of dish d
+// 	// M̅c // the set of meals that have their calories locked
+// 	// C̅_m // the locked calorie amount for meal m
+// 	// M̅p // the set of meals that have their daily calorie percentage locked
+// 	// P̅_m // the locked daily calorie percentage for meal m
+// 	// D̅s_m // the set of dishes in meal m that have their servings locked
+// 	// S̅_md // the locked number of servings of dish d in meal m
+// 	// D̅p_m // the set of dishes in meal m that have their calorie percentage locked
+// 	// P̅_md // the locked calorie percentage of dish d in meal m
+// }
+
+////////////////////////////////////////////////////////////////////////////////
 // MODEL
 ////////////////////////////////////////////////////////////////////////////////
 
 export function makeModels(household: Household): Map<number, Map<number, Model>> { // Map<Day, Map<Person.id, Model>> // DEBUG: remove the export
 	const models = new Map()
 	
-	const targets: Map<number, Targets> = household.people.values().reduce((acc, person) => acc.set(person.id, {
+	const targetsByPerson: Map<number, Nutrition> = household.people.values().reduce((acc, person) => acc.set(person.id, {
 		calories: targetCalories(person.age, person.sex, person.height, person.weight, person.goal, person.activity),
 		protein: targetProtein(person.weight, person.activity),
 	}), new Map())
+	const weightsByPerson: Map<number, Nutrition> = household.people.values().reduce((acc, person) => acc.set(person.id, {
+		calories: 1, // TODO: add to model & database
+		protein: 1, // TODO: add to model & database
+	}), new Map())
 	
+	// per day
 	const days = Map.groupBy(household.meals.values().filter(meal => meal.day), meal => meal.day!)
 	days.forEach((mealsOfDay, day) => {
 		models.set(day, new Map())
+		
+		// per person
 		household.people.forEach(person => {
-			const meals = mealsOfDay.filter(meal => person.visiting ? meal.whitelist.has(person.id) : !meal.blacklist.has(person.id))
-			
+			const meals = mealsOfDay.filter(meal => person.visiting ? meal.whitelist.has(person.id) : !meal.blacklist.has(person.id)) // get the meals they're a part of
 			if (0 < meals.length) { // if they're a part of any meals this day
-				const model = makeModel(meals, targets.get(person.id)!)
+				
+				const model = makeModel(meals, targetsByPerson.get(person.id)!, weightsByPerson.get(person.id)!)
 				
 				models.get(day).set(person.id, model)
 			}
@@ -56,25 +91,66 @@ export function makeModels(household: Household): Map<number, Map<number, Model>
 	return models
 }
 
-function makeModel(meals: Array<Meal>, targets: Targets): Model {
-	// TODO: implement
-	const objective = sum(meals, meal => sum(meal.components.values(), component => LE({[`${meal.id}-${component.dish}`]: 0}))) // TODO: calculate calories for 1 serving of the dish
+function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): Model {
+	const nutritonByDish = new Map(meals.flatMap(meal => [...meal.components.keys()]).map(dish => [dish, nutritionOfDish(dish)])) // TODO: maybe pass these in already calculated?
 	
+	// Variables
+	const s = (meal: number, dish: number) => `s_${meal}_${dish}`
+	
+	// Objective
+	const objective =
+		sum(meals, meal => sum(meal.components.keys(), dish => LE({[s(meal.id, dish)]: nutritonByDish.get(dish)!.calories * weights.calories / targets.calories}))).minus(1)
+		.plus(sum(meals, meal => sum(meal.components.keys(), dish => LE({[s(meal.id, dish)]: nutritonByDish.get(dish)!.protein * weights.protein / targets.protein})))).minus(1)
+	
+	// Constraints
+	// TODO: constraints
+	
+	// Model
+	const variables = transpose({objective: objective.terms})
 	return {
 		direction: "maximize" as const,
-		objective: "profit",
-		constraints: {
-			wood: {max: 300},
-			labor: {max: 110},
-			storage: {max: 400},
+		objective: "objective", // the name of the objective expression
+		constraints: { // really should be named the constraints' constant-side and equality or inequality
+			// TODO: constraints
 		},
-		variables: {
-			table: {wood: 30, labor: 5, profit: 1200, storage: 30},
-			dresser: {wood: 20, labor: 10, profit: 1600, storage: 50},
-		},
+		variables, // really should be named objective expression and terms-side of the constraint equations in standard form
 	}
 }
 
+// transpose helper to rearrange it into the form required by YALPS
+function transpose(expressions: Record<string, Map<Variable, number>>): Record<Variable, Record<string, number>> {
+	let temp: Record<Variable, Record<string, number>> = {}
+	Object.entries(expressions).forEach(([name, expression]) => {
+		expression.forEach((value, variable) => {
+			temp[variable] = temp[variable] ?? {}
+			temp[variable][name] = value
+		})
+	})
+	return temp
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// CALCULATIONS
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO: do this in a getter in the cache
+/** Gets the nutrition in 1 serving of the dish */
+function nutritionOfDish(dish: number): Nutrition {
+	const ingredients = dishes.get(dish)!.ingredients
+	return ingredients.values().reduce((total, ingredient) => {
+		const food = foods.get(ingredient.food)! // get the food
+		const multiplier = (ingredient.serving ? food.servings.get(ingredient.serving)?.amount : undefined) ?? 1 // get the multiplier given by the chosen serving
+		const amount = ingredient.amount * multiplier // get the amount of this ingredient in this dish (of g or ml)
+		
+		return {
+			calories: total.calories + (food.calories ?? 0) * amount,
+			protein: total.protein + (food.protein ?? 0) * amount,
+		}
+	}, {calories: 0, protein: 0})
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// LINEAR ALGEBRA
 ////////////////////////////////////////////////////////////////////////////////
 
 type Variable = string
@@ -90,9 +166,27 @@ class LinearExpression {
 		} else {
 			temp.constant = this.constant + expression.constant
 			temp.terms = new Map(this.terms) // make a copy of the left's terms
-			expression.terms.forEach((value, key) => temp.terms.set(key, temp.terms.get(key) ?? 0 + value)) // add on the right's values by term
+			expression.terms.forEach((value, variable) => temp.terms.set(variable, temp.terms.get(variable) ?? 0 + value)) // add on the right's values by term
 		}
 		return temp
+	}
+	
+	minus(expression: LinearExpression | number) {
+		const temp = new LinearExpression()
+		if (typeof expression === "number") {
+			temp.constant = this.constant - expression
+		} else {
+			temp.constant = this.constant - expression.constant
+			temp.terms = new Map(this.terms) // make a copy of the left's terms
+			expression.terms.forEach((value, variable) => temp.terms.set(variable, temp.terms.get(variable) ?? 0 - value)) // subtract the right's values by term
+		}
+		return temp
+	}
+	
+	times(scalar: number) {
+		const temp = new LinearExpression()
+		temp.constant = this.constant * scalar
+		this.terms.forEach((value, variable) => temp.terms.set(variable, value * scalar))
 	}
 }
 
@@ -107,7 +201,14 @@ class LinearEquation {
 		if (typeof right === "number") { const e = new LinearExpression(); e.constant = right; this.right = e } else { this.right = right }
 	}
 	
-	// simplified() // TODO: turn into standard form (constant on one side, terms on the other)
+	toYALPSForm(): {constant: number, terms: Map<Variable, number>, evaluator: "equal" | "min" | "max"} { // turn into standard form (constant on one side, terms on the other)
+		// turn: A + (Bx+Cy) = D + (Ex+Fy)
+		// into: A - D = (Ex+Fy) - (Bx+Cy)
+		const constant = this.left.constant - this.right.constant // subtract the right from the left, set that as the new left
+		const terms = new Map(this.right.terms)
+		this.left.terms.forEach((value, variable) => terms.set(variable, terms.get(variable) ?? 0 - value)) // subtract the left from the right, set that as the new right
+		return {constant, terms, evaluator: "=" ? "equal" : "<" ? "min" : "max"}
+	}
 }
 
 // BUILDERS
