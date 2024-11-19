@@ -1,10 +1,7 @@
 import {solve, type Model} from "yalps"
-import {dishes, foods} from "$lib/cache.svelte"
 import type {Household, Person, Meal, Dish} from "$lib/cache.svelte"
-
-// Target Calories Equation from: https://healthyeater.com/how-to-calculate-your-macros
-// Target Protein Equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/7-5-estimating-protein-needs/
-// Target Carbohydrates Equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/carbohydrate-and-exercise/
+import {type Variable, LinearEquation, LE, sum} from "$lib/linear-algebra"
+import {type Nutrition, targetCalories, targetProtein, nutritionOfDish} from "$lib/nutrition"
 
 ////////////////////////////////////////////////////////////////////////////////
 // SOLVER
@@ -19,8 +16,6 @@ export function calculateHousehold(household: Household): Map<Person["id"], Map<
 
 export function solveModel(model: Model, day: string, person: number): Map<Meal["id"], Map<Dish["id"], number>> {
 	const solution = solve(model, {includeZeroVariables: true})
-	console.log(solution)
-	
 	if (solution.status == "optimal") {
 		const result = new Map()
 		solution.variables.forEach(([variable, value]) => {
@@ -42,18 +37,13 @@ export function solveModel(model: Model, day: string, person: number): Map<Meal[
 // MODEL
 ////////////////////////////////////////////////////////////////////////////////
 
-type Nutrition = {
-	calories: number
-	protein: number
-}
-
 // DEBUG: remove the export
 export function makeModels(household: Household): Map<string, Map<Person["id"], Model>> {
 	const models = new Map()
 	
 	const targetsByPerson: Map<number, Nutrition> = household.people.values().reduce((acc, person) => acc.set(person.id, {
 		calories: targetCalories(person.age, person.sex, person.height, person.weight, person.goal, person.activity),
-		protein: targetProtein(person.weight, person.activity),
+		protein: targetProtein(person.weight, person.activity), // TODO: maybe put these together, all taking a person? or put it in a getter on the cache
 	}), new Map())
 	const weightsByPerson: Map<number, Nutrition> = household.people.values().reduce((acc, person) => acc.set(person.id, {
 		calories: 1, // TODO: add to model & database
@@ -140,123 +130,5 @@ function transpose(expressions: Record<string, Map<Variable, number>>): Record<V
 			temp[variable][name] = value
 		})
 	})
-	return temp
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// CALCULATIONS
-////////////////////////////////////////////////////////////////////////////////
-
-function targetCalories(age: number, sex: number, height: number, weight: number, goal: number, activity: number): number {
-	const sexAdjustment = 166 * sex - 161
-	const restingEnergyExpenditureCalories = weight * 10 + height * 6.25 - age * 5 + sexAdjustment
-	const activityMultiplier = 0.175 * activity + 0.85
-	const totalEnergyExpenditureCalories = restingEnergyExpenditureCalories * activityMultiplier
-	const goalMultiplier = 0.15 * goal + 0.55
-	return totalEnergyExpenditureCalories * goalMultiplier
-}
-
-function targetProtein(weight: number, activity: number): number {
-	return weight * (-1/3 * activity**2 + 13/30 * activity + 0.8)
-}
-
-// TODO: do this in a getter in the cache
-/** Gets the nutrition in 1 serving of the dish */
-function nutritionOfDish(dish: number): Nutrition {
-	const ingredients = dishes.get(dish)!.ingredients
-	return ingredients.values().reduce((total, ingredient) => {
-		const food = foods.get(ingredient.food)! // get the food
-		const multiplier = (ingredient.serving ? food.servings.get(ingredient.serving)?.amount : undefined) ?? 1 // get the multiplier given by the chosen serving
-		const amount = ingredient.amount * multiplier // get the amount of this ingredient in this dish (of g or ml)
-		
-		return {
-			calories: total.calories + (food.calories ?? 0) * amount,
-			protein: total.protein + (food.protein ?? 0) * amount,
-		}
-	}, {calories: 0, protein: 0})
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// LINEAR ALGEBRA
-////////////////////////////////////////////////////////////////////////////////
-
-type Variable = string
-
-class LinearExpression {
-	constant: number = 0
-	terms: Map<Variable, number> = new Map()
-	
-	plus(expression: LinearExpression | number): LinearExpression {
-		const temp = new LinearExpression()
-		temp.terms = new Map(this.terms) // work with a copy of the left's terms
-		if (typeof expression === "number") {
-			temp.constant = this.constant + expression
-		} else {
-			temp.constant = this.constant + expression.constant
-			expression.terms.forEach((value, variable) => temp.terms.set(variable, (temp.terms.get(variable) ?? 0) + value)) // add on the right's values by term
-		}
-		return temp
-	}
-	
-	minus(expression: LinearExpression | number): LinearExpression {
-		const temp = new LinearExpression()
-		temp.terms = new Map(this.terms) // work with a copy of the left's terms
-		if (typeof expression === "number") {
-			temp.constant = this.constant - expression
-		} else {
-			temp.constant = this.constant - expression.constant
-			expression.terms.forEach((value, variable) => temp.terms.set(variable, (temp.terms.get(variable) ?? 0) - value)) // subtract the right's values by term
-		}
-		return temp
-	}
-	
-	times(scalar: number): LinearExpression {
-		const temp = new LinearExpression()
-		temp.constant = this.constant * scalar
-		this.terms.forEach((value, variable) => temp.terms.set(variable, value * scalar))
-		return temp
-	}
-}
-
-class LinearEquation {
-	left: LinearExpression
-	evaluator: "=" | "<" | ">"
-	right: LinearExpression
-	
-	constructor(left: LinearExpression | number, evaluator: "=" | "<" | ">", right: LinearExpression | number) {
-		this.evaluator = evaluator
-		if (typeof left === "number") { const e = new LinearExpression(); e.constant = left; this.left = e } else { this.left = left }
-		if (typeof right === "number") { const e = new LinearExpression(); e.constant = right; this.right = e } else { this.right = right }
-	}
-	
-	// Export for YALPS
-	// turn: A + (Bx+Cy) = D + (Ex+Fy)
-	// into: A - D = (Ex+Fy) - (Bx+Cy)
-	// then: {variables: {x: E - B, y: F - C}, constraint: {equal: A - D}}
-	
-	get constraint(): {equal: number} | {min: number} | {max: number} {
-		const constant = this.left.constant - this.right.constant
-		return this.evaluator == "=" ? {equal: constant} : this.evaluator == "<" ? {min: constant} : {max: constant}
-	}
-	
-	get variables(): Map<Variable, number> {
-		const terms = new Map(this.right.terms)
-		this.left.terms.forEach((value, variable) => terms.set(variable, (terms.get(variable) ?? 0) - value))
-		return terms
-	}
-}
-
-// BUILDERS
-
-function LE(expression: Record<Variable, number> | number): LinearExpression {
-	const temp = new LinearExpression()
-	if (typeof expression === "number") temp.constant = expression
-	else Object.entries(expression).forEach(([variable, value]) => temp.terms.set(variable, value))
-	return temp
-}
-
-function sum<T>(iterable: Iterable<T>, linearize: (item: T) => LinearExpression | number): LinearExpression {
-	let temp = new LinearExpression()
-	for (const t of iterable) { temp = temp.plus(linearize(t)) }
 	return temp
 }
