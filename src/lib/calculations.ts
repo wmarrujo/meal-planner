@@ -10,22 +10,32 @@ import type {Household, Person, Meal, Dish} from "$lib/cache.svelte"
 // SOLVER
 ////////////////////////////////////////////////////////////////////////////////
 
-
-
 export function calculateHousehold(household: Household): Map<Person["id"], Map<Meal["id"], Map<Dish["id"], number>>> {
 	const models = makeModels(household)
 	const solution = new Map()
-	models.forEach(day => day.forEach((model, person) => solution.set(person, solveModel(model))))
+	models.forEach((dayModels, day) => dayModels.forEach((model, person) => solution.set(person, solveModel(model, day, person))))
 	return solution
 }
 
-export function solveModel(model: Model): Map<Meal["id"], Map<Dish["id"], number>> {
-	const result = solve(model)
-	console.log(result)
+export function solveModel(model: Model, day: string, person: number): Map<Meal["id"], Map<Dish["id"], number>> {
+	const solution = solve(model, {includeZeroVariables: true})
+	console.log(solution)
 	
-	// TODO: extract variables
-	
-	return new Map()
+	if (solution.status == "optimal") {
+		const result = new Map()
+		solution.variables.forEach(([variable, value]) => {
+			if (variable.startsWith("servings")) {
+				const [_, meal, dish] = variable.split("_")
+				result.set(meal, result.get(meal) ?? new Map())
+				result.get(meal)!.set(dish, value)
+			}
+		})
+		return result
+	} else { // "optimal" | "infeasible" | "unbounded" | "timedout" | "cycled"
+		console.error(`Failed to solve for day ${day} for person ${person}:`, solution.status)
+		// TODO: maybe have a better way to show errors, or to pass them back in through the solution to display on the page
+		return new Map()
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -74,7 +84,7 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 	const nutritonByDish = new Map(meals.flatMap(meal => [...meal.components.keys()]).map(dish => [dish, nutritionOfDish(dish)])) // TODO: maybe pass these in already calculated?
 	
 	// Variables
-	const servings = (meal: number, dish: number) => `s_${meal}_${dish}`
+	const servings = (meal: number, dish: number) => `servings_${meal}_${dish}` // NOTE: it uses underscores and position to get the ids back out
 	const calorieError = "calorie_error"
 	const proteinError = "protein_error"
 	
@@ -94,6 +104,7 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 	const defineProteinErrorNegative = new LinearEquation(LE({[proteinError]: 1}), ">", totalProtein.minus(targets.protein).times(-1 / targets.protein))
 	const mustHavePositiveCalories = new LinearEquation(0, "<", totalCalories)
 	const mustHavePositiveProtein = new LinearEquation(0, "<", totalProtein)
+	// TODO: constraints for locking values
 	
 	// Model
 	
