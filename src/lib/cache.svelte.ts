@@ -8,18 +8,20 @@ import {SvelteMap, SvelteSet} from "svelte/reactivity"
 // TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
+export type UUID = string
+
 export type Household = {
 	id: number
 	name: string
-	head: string
-	people: SvelteMap<number, Person>
-	meals: SvelteMap<number, Meal>
-	solution: Map<number, Map<number, number>> // Map<Meal.id, Map<Dish.id, servings>>
+	head: UUID
+	people: SvelteMap<Person["id"], Person>
+	meals: SvelteMap<Meal["id"], Meal>
+	solution: Map<Person["id"], Map<Meal["id"], Map<Dish["id"], number>>>
 }
 
 export type Person = {
 	id: number
-	household: number
+	household: Household["id"]
 	name: string
 	age: number
 	sex: number
@@ -33,22 +35,22 @@ export type Person = {
 
 export type Meal = {
 	id: number
-	household: number
+	household: Household["id"]
 	name: string
-	day: string | null
-	time: string | null
-	date: DateTime
+	day: string | null // ISO Date String
+	time: string | null // ISO Time String
+	date: DateTime // day + time, parsed
 	amount: number
 	percent: boolean | null
 	restriction: Enums<"restriction"> | null
-	components: SvelteMap<number, Component>
-	blacklist: SvelteSet<number> // exclude these people from the meal when they otherwise would be (only applies to non-visitors)
-	whitelist: SvelteSet<number> // include these people in the meal when they otherwise wouldn't be (only applies to visitors)
+	components: SvelteMap<Dish["id"], Component>
+	blacklist: SvelteSet<Person["id"]> // exclude these people from the meal when they otherwise would be (only applies to non-visitors)
+	whitelist: SvelteSet<Person["id"]> // include these people in the meal when they otherwise wouldn't be (only applies to visitors)
 }
 
 export type Component = {
-	meal: number
-	dish: number
+	meal: Meal["id"]
+	dish: Dish["id"]
 	amount: number
 	percent: boolean | null
 	restriction: string | null
@@ -57,20 +59,20 @@ export type Component = {
 export type Dish = {
 	id: number
 	name: string
-	ingredients: SvelteMap<number, Ingredient>
-	manager: string | null
+	ingredients: SvelteMap<Food["id"], Ingredient>
+	manager: UUID | null
 }
 
 export type Ingredient = {
-	food: number
+	food: Food["id"]
 	amount: number
-	serving: number | null
+	serving: Serving["id"] | null
 }
 
 export type Food = {
 	id: number
 	name: string
-	servings: SvelteMap<number, Serving> // the serving options available
+	servings: SvelteMap<Serving["id"], Serving> // the serving options available
 	by_volume: boolean
 	calories: number | null
 	protein: number | null
@@ -78,7 +80,7 @@ export type Food = {
 
 export type Serving = {
 	id: number
-	food: number
+	food: Food["id"]
 	amount: number
 	amount_of_unit: number
 	unit: string | null

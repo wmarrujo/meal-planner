@@ -1,27 +1,31 @@
 import {solve, type Model} from "yalps"
 import {dishes, foods} from "$lib/cache.svelte"
-import type {Household, Person, Meal} from "$lib/cache.svelte"
+import type {Household, Person, Meal, Dish} from "$lib/cache.svelte"
 
 // Target Calories Equation from: https://healthyeater.com/how-to-calculate-your-macros
 // Target Protein Equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/7-5-estimating-protein-needs/
 // Target Carbohydrates Equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/carbohydrate-and-exercise/
 
 ////////////////////////////////////////////////////////////////////////////////
-// TARGETS
+// SOLVER
 ////////////////////////////////////////////////////////////////////////////////
 
 
-function targetCalories(age: number, sex: number, height: number, weight: number, goal: number, activity: number): number {
-	const sexAdjustment = 166 * sex - 161
-	const restingEnergyExpenditureCalories = weight * 10 + height * 6.25 - age * 5 + sexAdjustment
-	const activityMultiplier = 0.175 * activity + 0.85
-	const totalEnergyExpenditureCalories = restingEnergyExpenditureCalories * activityMultiplier
-	const goalMultiplier = 0.15 * goal + 0.55
-	return totalEnergyExpenditureCalories * goalMultiplier
+
+export function calculateHousehold(household: Household): Map<Person["id"], Map<Meal["id"], Map<Dish["id"], number>>> {
+	const models = makeModels(household)
+	const solution = new Map()
+	models.forEach(day => day.forEach((model, person) => solution.set(person, solveModel(model))))
+	return solution
 }
 
-function targetProtein(weight: number, activity: number): number {
-	return weight * (-1/3 * activity**2 + 13/30 * activity + 0.8)
+export function solveModel(model: Model): Map<Meal["id"], Map<Dish["id"], number>> {
+	const result = solve(model)
+	console.log(result)
+	
+	// TODO: extract variables
+	
+	return new Map()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -33,7 +37,8 @@ type Nutrition = {
 	protein: number
 }
 
-export function makeModels(household: Household): Map<number, Map<number, Model>> { // Map<Day, Map<Person.id, Model>> // DEBUG: remove the export
+// DEBUG: remove the export
+export function makeModels(household: Household): Map<string, Map<Person["id"], Model>> {
 	const models = new Map()
 	
 	const targetsByPerson: Map<number, Nutrition> = household.people.values().reduce((acc, person) => acc.set(person.id, {
@@ -69,25 +74,49 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 	const nutritonByDish = new Map(meals.flatMap(meal => [...meal.components.keys()]).map(dish => [dish, nutritionOfDish(dish)])) // TODO: maybe pass these in already calculated?
 	
 	// Variables
-	const s = (meal: number, dish: number) => `s_${meal}_${dish}`
+	const servings = (meal: number, dish: number) => `s_${meal}_${dish}`
+	const calorieError = "calorie_error"
+	const proteinError = "protein_error"
+	
+	// Snippets
+	const totalCalories = sum(meals, meal => sum(meal.components.keys(), dish => LE({[servings(meal.id, dish)]: nutritonByDish.get(dish)!.calories})))
+	const totalProtein = sum(meals, meal => sum(meal.components.keys(), dish => LE({[servings(meal.id, dish)]: nutritonByDish.get(dish)!.protein})))
 	
 	// Objective
 	const objective =
-		sum(meals, meal => sum(meal.components.keys(), dish => LE({[s(meal.id, dish)]: nutritonByDish.get(dish)!.calories * weights.calories / targets.calories}))).minus(1)
-		.plus(sum(meals, meal => sum(meal.components.keys(), dish => LE({[s(meal.id, dish)]: nutritonByDish.get(dish)!.protein * weights.protein / targets.protein})))).minus(1)
+		LE({[calorieError]: 1}).times(weights.calories)
+		.plus(LE({[proteinError]: 1}).times(weights.protein))
 	
 	// Constraints
-	// TODO: constraints
+	const defineCalorieErrorPositive = new LinearEquation(LE({[calorieError]: 1}), ">", totalCalories.minus(targets.calories).times(1 / targets.calories))
+	const defineCalorieErrorNegative = new LinearEquation(LE({[calorieError]: 1}), ">", totalCalories.minus(targets.calories).times(-1 / targets.calories))
+	const defineProteinErrorPositive = new LinearEquation(LE({[proteinError]: 1}), ">", totalProtein.minus(targets.protein).times(1 / targets.protein))
+	const defineProteinErrorNegative = new LinearEquation(LE({[proteinError]: 1}), ">", totalProtein.minus(targets.protein).times(-1 / targets.protein))
+	const mustHavePositiveCalories = new LinearEquation(0, "<", totalCalories)
+	const mustHavePositiveProtein = new LinearEquation(0, "<", totalProtein)
 	
 	// Model
-	const variables = transpose({objective: objective.terms})
+	
 	return {
-		direction: "maximize" as const,
+		direction: "minimize" as const,
 		objective: "objective", // the name of the objective expression
 		constraints: { // really should be named the constraints' constant-side and equality or inequality
-			// TODO: constraints
+			defineCalorieErrorPositive: defineCalorieErrorPositive.constraint,
+			defineCalorieErrorNegative: defineCalorieErrorNegative.constraint,
+			defineProteinErrorPositive: defineProteinErrorPositive.constraint,
+			defineProteinErrorNegative: defineProteinErrorNegative.constraint,
+			mustHavePositiveCalories: mustHavePositiveCalories.constraint,
+			mustHavePositiveProtein: mustHavePositiveProtein.constraint,
 		},
-		variables, // really should be named objective expression and terms-side of the constraint equations in standard form
+		variables: transpose({ // really should be named objective expression and terms-side of the constraint equations in standard form
+			objective: objective.terms,
+			defineCalorieErrorPositive: defineCalorieErrorPositive.variables,
+			defineCalorieErrorNegative: defineCalorieErrorNegative.variables,
+			defineProteinErrorPositive: defineProteinErrorPositive.variables,
+			defineProteinErrorNegative: defineProteinErrorNegative.variables,
+			mustHavePositiveCalories: mustHavePositiveCalories.variables,
+			mustHavePositiveProtein: mustHavePositiveProtein.variables,
+		}),
 	}
 }
 
@@ -106,6 +135,19 @@ function transpose(expressions: Record<string, Map<Variable, number>>): Record<V
 ////////////////////////////////////////////////////////////////////////////////
 // CALCULATIONS
 ////////////////////////////////////////////////////////////////////////////////
+
+function targetCalories(age: number, sex: number, height: number, weight: number, goal: number, activity: number): number {
+	const sexAdjustment = 166 * sex - 161
+	const restingEnergyExpenditureCalories = weight * 10 + height * 6.25 - age * 5 + sexAdjustment
+	const activityMultiplier = 0.175 * activity + 0.85
+	const totalEnergyExpenditureCalories = restingEnergyExpenditureCalories * activityMultiplier
+	const goalMultiplier = 0.15 * goal + 0.55
+	return totalEnergyExpenditureCalories * goalMultiplier
+}
+
+function targetProtein(weight: number, activity: number): number {
+	return weight * (-1/3 * activity**2 + 13/30 * activity + 0.8)
+}
 
 // TODO: do this in a getter in the cache
 /** Gets the nutrition in 1 serving of the dish */
@@ -133,7 +175,7 @@ class LinearExpression {
 	constant: number = 0
 	terms: Map<Variable, number> = new Map()
 	
-	plus(expression: LinearExpression | number) {
+	plus(expression: LinearExpression | number): LinearExpression {
 		const temp = new LinearExpression()
 		temp.terms = new Map(this.terms) // work with a copy of the left's terms
 		if (typeof expression === "number") {
@@ -145,7 +187,7 @@ class LinearExpression {
 		return temp
 	}
 	
-	minus(expression: LinearExpression | number) {
+	minus(expression: LinearExpression | number): LinearExpression {
 		const temp = new LinearExpression()
 		temp.terms = new Map(this.terms) // work with a copy of the left's terms
 		if (typeof expression === "number") {
@@ -157,10 +199,11 @@ class LinearExpression {
 		return temp
 	}
 	
-	times(scalar: number) {
+	times(scalar: number): LinearExpression {
 		const temp = new LinearExpression()
 		temp.constant = this.constant * scalar
 		this.terms.forEach((value, variable) => temp.terms.set(variable, value * scalar))
+		return temp
 	}
 }
 
@@ -175,13 +218,20 @@ class LinearEquation {
 		if (typeof right === "number") { const e = new LinearExpression(); e.constant = right; this.right = e } else { this.right = right }
 	}
 	
-	toYALPSForm(): {constant: number, terms: Map<Variable, number>, evaluator: "equal" | "min" | "max"} { // turn into standard form (constant on one side, terms on the other)
-		// turn: A + (Bx+Cy) = D + (Ex+Fy)
-		// into: A - D = (Ex+Fy) - (Bx+Cy)
-		const constant = this.left.constant - this.right.constant // subtract the right from the left, set that as the new left
+	// Export for YALPS
+	// turn: A + (Bx+Cy) = D + (Ex+Fy)
+	// into: A - D = (Ex+Fy) - (Bx+Cy)
+	// then: {variables: {x: E - B, y: F - C}, constraint: {equal: A - D}}
+	
+	get constraint(): {equal: number} | {min: number} | {max: number} {
+		const constant = this.left.constant - this.right.constant
+		return this.evaluator == "=" ? {equal: constant} : this.evaluator == "<" ? {min: constant} : {max: constant}
+	}
+	
+	get variables(): Map<Variable, number> {
 		const terms = new Map(this.right.terms)
-		this.left.terms.forEach((value, variable) => terms.set(variable, (terms.get(variable) ?? 0) - value)) // subtract the left from the right, set that as the new right
-		return {constant, terms, evaluator: this.evaluator == "=" ? "equal" : this.evaluator == "<" ? "min" : "max"}
+		this.left.terms.forEach((value, variable) => terms.set(variable, (terms.get(variable) ?? 0) - value))
+		return terms
 	}
 }
 
