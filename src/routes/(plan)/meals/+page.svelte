@@ -1,5 +1,5 @@
 <script lang="ts">
-	import {getContext} from "svelte"
+	import {getContext, onMount} from "svelte"
 	import {supabase} from "$lib/supabase"
 	import {toast} from "svelte-sonner"
 	import {Plus, X, LockOpen, Equal, ChevronLeft, ChevronRight, EllipsisVertical} from "lucide-svelte"
@@ -9,6 +9,10 @@
 	import {dishes, type Household} from "$lib/cache.svelte"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
+	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	onMount(() => { if (home) home.solution = undefined })
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
@@ -58,7 +62,7 @@
 			.select("id, household, name, day, time, amount, percent, restriction")
 			.single()
 		if (error) { console.error("Error in creating new meal:", error); toast.error("Error in creating new meal"); return }
-		home!.meals.set(data.id, {...data, components: new SvelteMap(), date: DateTime.fromISO(data.day!)})
+		home!.meals.set(data.id, {...data, date: DateTime.fromISO(data.day!), components: new SvelteMap(), whitelist: new SvelteSet(), blacklist: new SvelteSet()})
 	}
 	
 	// EDIT

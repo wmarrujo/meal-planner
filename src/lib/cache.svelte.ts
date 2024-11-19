@@ -16,7 +16,7 @@ export type Household = {
 	head: UUID
 	people: SvelteMap<Person["id"], Person>
 	meals: SvelteMap<Meal["id"], Meal>
-	solution: Map<Person["id"], Map<Meal["id"], Map<Dish["id"], number>>>
+	solution?: Map<Person["id"], Map<Meal["id"], Map<Dish["id"], number>>> // set only when calculated // TODO: make this more reactive, so if anything changes, it recalculates, but only when going to the pages that use the solution
 }
 
 export type Person = {

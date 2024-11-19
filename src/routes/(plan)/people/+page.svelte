@@ -1,11 +1,15 @@
 <script lang="ts">
 	import {Plus, Turtle, Rabbit, ChevronsDown, ChevronDown, Minus, ChevronUp, ChevronsUp} from "lucide-svelte"
 	import {supabase} from "$lib/supabase"
-	import {getContext} from "svelte"
+	import {getContext, onMount} from "svelte"
 	import {toast} from "svelte-sonner"
 	import {type Household} from "$lib/cache.svelte"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
+	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	onMount(() => { if (home) home.solution = undefined })
 	
 	////////////////////////////////////////////////////////////////////////////////
 	// PERSON

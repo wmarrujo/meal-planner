@@ -7,10 +7,10 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	onMount(() => {
-		const solution = home ? calculateHousehold(home) : undefined
-		console.log(solution)
-	})
+	onMount(() => { if (home && !home.solution) { home.solution = calculateHousehold(home) }})
 </script>
 
 <h1>Groceries</h1>
+{#if home?.solution}
+	<span>Solution!</span>
+{/if}

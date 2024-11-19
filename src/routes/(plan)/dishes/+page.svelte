@@ -8,10 +8,16 @@
 	import {toast} from "svelte-sonner"
 	import {dishes, foods, type Dish} from "$lib/cache.svelte"
 	import {SvelteMap} from "svelte/reactivity"
+	import {getContext, onMount} from "svelte"
+	import {type Household} from "$lib/cache.svelte"
+	
+	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
 	let {data} = $props()
+	
+	onMount(() => { if (home) home.solution = undefined })
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
