@@ -10,10 +10,6 @@ import type {Household, Person, Meal} from "$lib/cache.svelte"
 // TARGETS
 ////////////////////////////////////////////////////////////////////////////////
 
-type Nutrition = {
-	calories: number
-	protein: number
-}
 
 function targetCalories(age: number, sex: number, height: number, weight: number, goal: number, activity: number): number {
 	const sexAdjustment = 166 * sex - 161
@@ -29,35 +25,13 @@ function targetProtein(weight: number, activity: number): number {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// CONSTANTS
-////////////////////////////////////////////////////////////////////////////////
-
-// type Constants = {
-// 	// Targets
-// 	calorie_target: number // ℂ // the target amount of calories (kcal) for the day
-// 	protein_target: number // ℙ // the target amount of protein (g) for the day
-// 	// Weights
-// 	calorie_weight: number // ⧫_c // how much to care about hitting the calorie target
-// 	protein_weight: number // ⧫_p // how much to care about hitting the protein target
-// 	// Sets
-// 	meals: Array<number> // Array<Meal.id> // M // the set of meals in the day
-// 	// Maps
-// 	dishesInMeals: Map<number, Array<number>> // Map<Meal.id, Array<Dish.id>> // D_m // the set of dishes in meal m
-// 	// C_d // the amount of calories for 1 serving of dish d
-// 	// P_d // the amount of protein for 1 serving of dish d
-// 	// M̅c // the set of meals that have their calories locked
-// 	// C̅_m // the locked calorie amount for meal m
-// 	// M̅p // the set of meals that have their daily calorie percentage locked
-// 	// P̅_m // the locked daily calorie percentage for meal m
-// 	// D̅s_m // the set of dishes in meal m that have their servings locked
-// 	// S̅_md // the locked number of servings of dish d in meal m
-// 	// D̅p_m // the set of dishes in meal m that have their calorie percentage locked
-// 	// P̅_md // the locked calorie percentage of dish d in meal m
-// }
-
-////////////////////////////////////////////////////////////////////////////////
 // MODEL
 ////////////////////////////////////////////////////////////////////////////////
+
+type Nutrition = {
+	calories: number
+	protein: number
+}
 
 export function makeModels(household: Household): Map<number, Map<number, Model>> { // Map<Day, Map<Person.id, Model>> // DEBUG: remove the export
 	const models = new Map()
@@ -161,24 +135,24 @@ class LinearExpression {
 	
 	plus(expression: LinearExpression | number) {
 		const temp = new LinearExpression()
+		temp.terms = new Map(this.terms) // work with a copy of the left's terms
 		if (typeof expression === "number") {
 			temp.constant = this.constant + expression
 		} else {
 			temp.constant = this.constant + expression.constant
-			temp.terms = new Map(this.terms) // make a copy of the left's terms
-			expression.terms.forEach((value, variable) => temp.terms.set(variable, temp.terms.get(variable) ?? 0 + value)) // add on the right's values by term
+			expression.terms.forEach((value, variable) => temp.terms.set(variable, (temp.terms.get(variable) ?? 0) + value)) // add on the right's values by term
 		}
 		return temp
 	}
 	
 	minus(expression: LinearExpression | number) {
 		const temp = new LinearExpression()
+		temp.terms = new Map(this.terms) // work with a copy of the left's terms
 		if (typeof expression === "number") {
 			temp.constant = this.constant - expression
 		} else {
 			temp.constant = this.constant - expression.constant
-			temp.terms = new Map(this.terms) // make a copy of the left's terms
-			expression.terms.forEach((value, variable) => temp.terms.set(variable, temp.terms.get(variable) ?? 0 - value)) // subtract the right's values by term
+			expression.terms.forEach((value, variable) => temp.terms.set(variable, (temp.terms.get(variable) ?? 0) - value)) // subtract the right's values by term
 		}
 		return temp
 	}
@@ -206,8 +180,8 @@ class LinearEquation {
 		// into: A - D = (Ex+Fy) - (Bx+Cy)
 		const constant = this.left.constant - this.right.constant // subtract the right from the left, set that as the new left
 		const terms = new Map(this.right.terms)
-		this.left.terms.forEach((value, variable) => terms.set(variable, terms.get(variable) ?? 0 - value)) // subtract the left from the right, set that as the new right
-		return {constant, terms, evaluator: "=" ? "equal" : "<" ? "min" : "max"}
+		this.left.terms.forEach((value, variable) => terms.set(variable, (terms.get(variable) ?? 0) - value)) // subtract the left from the right, set that as the new right
+		return {constant, terms, evaluator: this.evaluator == "=" ? "equal" : this.evaluator == "<" ? "min" : "max"}
 	}
 }
 
@@ -220,8 +194,8 @@ function LE(expression: Record<Variable, number> | number): LinearExpression {
 	return temp
 }
 
-function sum<T>(set: Iterable<T>, linearize: (value: T) => LinearExpression | number): LinearExpression {
-	const temp = new LinearExpression()
-	for (const t of set) { temp.plus(linearize(t)) }
+function sum<T>(iterable: Iterable<T>, linearize: (item: T) => LinearExpression | number): LinearExpression {
+	let temp = new LinearExpression()
+	for (const t of iterable) { temp = temp.plus(linearize(t)) }
 	return temp
 }
