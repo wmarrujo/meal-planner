@@ -113,7 +113,6 @@ else householdsData.forEach(household => households.set(household.id, {
 	...household,
 	people: new SvelteMap(),
 	meals: new SvelteMap(),
-	solution: new SvelteMap(),
 }))
 
 // People

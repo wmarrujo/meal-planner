@@ -175,7 +175,7 @@
 
 <main class="flex h-[calc(100vh-4rem)] relative overflow-scroll scroll">
 	<div class="flex flex-col">
-		{#each [...days].map(d => DateTime.fromISO(d)) as day (day)}
+		{#each [...days].sort().map(d => DateTime.fromISO(d)) as day (day)}
 			{#if DateTime.now() < day && !days.has(day.minus({days: 1}).toISODate()!) && !days.has(day.minus({days: 2}).toISODate()!) && !days.has(day.minus({days: 3}).toISODate()!)}
 				<div class="flex border-t border-base-content">
 					<div class="min-w-14 border-base-content py-1 flex justify-center sticky left-0 bg-base-100">

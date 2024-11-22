@@ -14,15 +14,15 @@ export function calculateHousehold(household: Household): Map<Person["id"], Map<
 	return solution
 }
 
-export function solveModel(model: Model, day: string, person: number): Map<Meal["id"], Map<Dish["id"], number>> {
+function solveModel(model: Model, day: string, person: number): Map<Meal["id"], Map<Dish["id"], number>> {
 	const solution = solve(model, {includeZeroVariables: true})
 	if (solution.status == "optimal") {
 		const result: Map<Meal["id"], Map<Dish["id"], number>> = new Map()
 		solution.variables.forEach(([variable, value]) => {
 			if (variable.startsWith("servings")) {
-				const [_, meal, dish] = variable.split("_")
-				result.set(Number(meal), result.get(Number(meal)) ?? new Map())
-				result.get(Number(meal))!.set(Number(dish), value)
+				const [_, m, d] = variable.split("_"); const meal = Number(m); const dish = Number(d)
+				result.set(meal, result.get(meal) ?? new Map())
+				result.get(meal)!.set(dish, value)
 			}
 		})
 		return result
@@ -37,8 +37,7 @@ export function solveModel(model: Model, day: string, person: number): Map<Meal[
 // MODEL
 ////////////////////////////////////////////////////////////////////////////////
 
-// DEBUG: remove the export
-export function makeModels(household: Household): Map<string, Map<Person["id"], Model>> {
+function makeModels(household: Household): Map<string, Map<Person["id"], Model>> {
 	const models = new Map()
 	
 	const targetsByPerson: Map<number, Nutrition> = household.people.values().reduce((acc, person) => acc.set(person.id, {
