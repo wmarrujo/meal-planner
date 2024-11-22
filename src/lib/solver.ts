@@ -17,12 +17,12 @@ export function calculateHousehold(household: Household): Map<Person["id"], Map<
 export function solveModel(model: Model, day: string, person: number): Map<Meal["id"], Map<Dish["id"], number>> {
 	const solution = solve(model, {includeZeroVariables: true})
 	if (solution.status == "optimal") {
-		const result = new Map()
+		const result: Map<Meal["id"], Map<Dish["id"], number>> = new Map()
 		solution.variables.forEach(([variable, value]) => {
 			if (variable.startsWith("servings")) {
 				const [_, meal, dish] = variable.split("_")
-				result.set(meal, result.get(meal) ?? new Map())
-				result.get(meal)!.set(dish, value)
+				result.set(Number(meal), result.get(Number(meal)) ?? new Map())
+				result.get(Number(meal))!.set(Number(dish), value)
 			}
 		})
 		return result

@@ -9,6 +9,8 @@ import {SvelteMap, SvelteSet} from "svelte/reactivity"
 ////////////////////////////////////////////////////////////////////////////////
 
 export type UUID = string
+export type ISODateString = string
+export type ISOTimeString = string
 
 export type Household = {
 	id: number
@@ -37,8 +39,8 @@ export type Meal = {
 	id: number
 	household: Household["id"]
 	name: string
-	day: string | null // ISO Date String
-	time: string | null // ISO Time String
+	day: ISODateString | null // ISO Date String
+	time: ISOTimeString | null // ISO Time String
 	date: DateTime // day + time, parsed
 	amount: number
 	percent: boolean | null

@@ -6,7 +6,8 @@
 	import {DateTime} from "luxon"
 	import {SvelteSet, SvelteMap} from "svelte/reactivity"
 	import DishPicker from "./dish-picker.svelte"
-	import {dishes, type Household} from "$lib/cache.svelte"
+	import {dishes, type Household, type ISODateString} from "$lib/cache.svelte"
+	import {formatDate} from "$lib/utils"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
 	
@@ -16,32 +17,9 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	let days = $state<SvelteSet<string>>(new SvelteSet([DateTime.now().toISODate()!])) // all the days to show (all at the start of the day), as ISO Dates so they will be equal in the set
+	let days = $state<SvelteSet<ISODateString>>(new SvelteSet([DateTime.now().toISODate()!])) // all the days to show (all at the start of the day), as ISO Dates so they will be equal in the set
 	
 	$effect(() => { if (home) { home.meals.values().forEach(meal => days.add(meal.date.toISODate()!)) } else { days.clear(); days.add(DateTime.now().toISODate()!) }}) // make sure each of the days that a meal is on are in the days list, reset with no home
-	
-	////////////////////////////////////////////////////////////////////////////////
-	// DATE
-	////////////////////////////////////////////////////////////////////////////////
-	
-	function formatDate(date: DateTime): string {
-		const now = DateTime.now().startOf("day")
-		const monthStartIfNeeded = date.equals(date.startOf("month")) ? ", " + date.toLocaleString({month: "short", day: "numeric"}) : ""
-		
-		if (date.year == now.year) {
-			// for near dates, say "yesterday", "today", "tomorrow"
-			if (date.equals(now.minus({days: 1}))) return "Yesterday" + monthStartIfNeeded
-			if (date.equals(now)) return "Today" + monthStartIfNeeded
-			if (date.equals(now.plus({days: 1}))) return "Tomorrow" + monthStartIfNeeded
-			// for near dates say "last monday", "next tuesday", etc.
-			if (-7 <= date.diff(now).as("days") && date.diff(now).as("days") < 0) return "Last " + date.toLocaleString({weekday: "long"}) + monthStartIfNeeded
-			if (0 <= date.diff(now).as("days") && date.diff(now).as("days") < 7) return date.toLocaleString({weekday: "long"}) + monthStartIfNeeded
-			if (7 <= date.diff(now).as("days") && date.diff(now).as("days") < 14) return "Next " + date.toLocaleString({weekday: "long"}) + monthStartIfNeeded
-			// for other dates within the year, just say "Fri Nov 23", "Tue Apr 15"
-			return date.toLocaleString({weekday: "short", month: "short", day: "numeric"})
-		}
-		return date.toLocaleString({weekday: "short", year: "numeric", month: "short", day: "numeric"})
-	}
 	
 	////////////////////////////////////////////////////////////////////////////////
 	// MEAL
