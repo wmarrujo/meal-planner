@@ -3,7 +3,7 @@
 	import * as y from "yup"
 	import {superForm, defaults, setError} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
-	import {Plus, X} from "lucide-svelte"
+	import {Plus, X, Trash2} from "lucide-svelte"
 	import FoodPicker from "./food-picker.svelte"
 	import {toast} from "svelte-sonner"
 	import {dishes, foods, type Dish} from "$lib/cache.svelte"
@@ -166,7 +166,7 @@
 								</td>
 								{#if selected.manager == data.session?.user.id}
 									<td class="p-1">
-										<button onclick={() => removeIngredient(selected!.id, food.id)} class="btn btn-sm btn-square hover:bg-error invisible group-hover:visible"><X /></button>
+										<button onclick={() => removeIngredient(selected!.id, food.id)} class="btn btn-sm btn-square hover:bg-error invisible group-hover:visible"><Trash2 /></button>
 									</td>
 								{/if}
 							</tr>

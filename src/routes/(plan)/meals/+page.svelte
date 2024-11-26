@@ -2,7 +2,7 @@
 	import {getContext, onMount} from "svelte"
 	import {supabase} from "$lib/supabase"
 	import {toast} from "svelte-sonner"
-	import {Plus, X, LockOpen, Equal, ChevronLeft, ChevronRight, EllipsisVertical} from "lucide-svelte"
+	import {Plus, Trash2, LockOpen, Equal, ChevronLeft, ChevronRight, EllipsisVertical} from "lucide-svelte"
 	import {DateTime} from "luxon"
 	import {SvelteSet} from "svelte/reactivity"
 	import DishPicker from "./dish-picker.svelte"
@@ -217,7 +217,7 @@
 									kcal
 								{/if}
 							</button>
-							<button onclick={() => removeMeal(meal.id)} class="btn btn-square btn-sm invisible group-hover:visible hover:bg-error"><X /></button>
+							<button onclick={() => removeMeal(meal.id)} class="btn btn-square btn-sm invisible group-hover:visible hover:bg-error"><Trash2 /></button>
 						</div>
 						<div class="grid grid-cols-[1fr_repeat(4,auto)] group/components gap-2 pl-4">
 							{#each Object.values(meal.components) as component (component.dish)}
@@ -244,7 +244,7 @@
 										kcal
 									{/if}
 								</button>
-								<button onclick={() => removeComponent(meal.id, dish.id)} class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><X /></button>
+								<button onclick={() => removeComponent(meal.id, dish.id)} class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><Trash2 /></button>
 							{/each}
 						</div>
 						<DishPicker class="pt-2" onselect={dish => addComponent(meal.id, dish)} />
