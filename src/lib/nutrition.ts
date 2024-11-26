@@ -1,9 +1,5 @@
 import {dishes, foods} from "$lib/cache.svelte"
 
-// Target Calories Equation from: https://healthyeater.com/how-to-calculate-your-macros
-// Target Protein Equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/7-5-estimating-protein-needs/
-// Target Carbohydrates Equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/carbohydrate-and-exercise/
-
 ////////////////////////////////////////////////////////////////////////////////
 // TYPE
 ////////////////////////////////////////////////////////////////////////////////
@@ -18,17 +14,21 @@ export type Nutrition = {
 ////////////////////////////////////////////////////////////////////////////////
 
 export function targetCalories(age: number, sex: number, height: number, weight: number, goal: number, activity: number): number {
+	// equation from: https://healthyeater.com/how-to-calculate-your-macros
 	const sexAdjustment = 166 * sex - 161
-	const restingEnergyExpenditureCalories = weight * 10 + height * 6.25 - age * 5 + sexAdjustment
-	const activityMultiplier = 0.175 * activity + 0.85
+	const restingEnergyExpenditureCalories = 10 * weight + 6.25 * height - 5 * age + sexAdjustment
+	const activityMultiplier = 0.13125 * activity + 1.2
 	const totalEnergyExpenditureCalories = restingEnergyExpenditureCalories * activityMultiplier
-	const goalMultiplier = 0.15 * goal + 0.55
+	const goalMultiplier = 0.2 * goal + 1
 	return totalEnergyExpenditureCalories * goalMultiplier
 }
 
 export function targetProtein(weight: number, activity: number): number {
-	return weight * (-1/3 * activity**2 + 13/30 * activity + 0.8)
+	// equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/7-5-estimating-protein-needs/
+	return weight * (0.05 * activity**2 + 0.1 * activity + 0.8)
 }
+
+// TODO: target carbohydrates equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/carbohydrate-and-exercise/
 
 ////////////////////////////////////////////////////////////////////////////////
 // NUTRITION
@@ -37,10 +37,10 @@ export function targetProtein(weight: number, activity: number): number {
 // TODO: do this in a getter in the cache
 /** Gets the nutrition in 1 serving of the dish */
 export function nutritionOfDish(dish: number): Nutrition {
-	const ingredients = dishes.get(dish)!.ingredients
-	return ingredients.values().reduce((total, ingredient) => {
-		const food = foods.get(ingredient.food)! // get the food
-		const multiplier = (ingredient.serving ? food.servings.get(ingredient.serving)?.amount : undefined) ?? 1 // get the multiplier given by the chosen serving
+	const ingredients = dishes[dish].ingredients
+	return Object.values(ingredients).reduce((total, ingredient) => {
+		const food = foods[ingredient.food] // get the food
+		const multiplier = (ingredient.serving ? food.servings[ingredient.serving]?.amount : undefined) ?? 1 // get the multiplier given by the chosen serving
 		const amount = ingredient.amount * multiplier // get the amount of this ingredient in this dish (of g or ml)
 		
 		return {

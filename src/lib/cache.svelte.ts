@@ -25,12 +25,12 @@ export type Person = {
 	id: number
 	household: Household["id"]
 	name: string
-	age: number
-	sex: number
-	height: number
-	weight: number
-	activity: number
-	goal: number
+	age: number // in years
+	sex: number // 0 is female, 1 is male, if ambiguous base it on metabolism
+	height: number // in cm
+	weight: number // in kg
+	activity: number // from 0 to 4 where 0 is sedentary, and 4 is athlete-level
+	goal: number // where 0 is maintain weight, 1 is gain weight, and -1 is lose weight, anything more is doing those faster
 	visiting: boolean // if this person should be in the meals of this household by default
 	// TODO: do target priorities by person
 }
@@ -39,8 +39,8 @@ export type Meal = {
 	id: number
 	household: Household["id"]
 	name: string
-	day: ISODateString | null // ISO Date String
-	time: ISOTimeString | null // ISO Time String
+	day: ISODateString | null
+	time: ISOTimeString | null
 	date: DateTime // day + time, parsed
 	amount: number
 	percent: boolean | null
