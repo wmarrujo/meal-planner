@@ -18,18 +18,12 @@
 	
 	let home: Household | undefined = $state() // the current household selected
 	
-	$effect(() => { if (0 < households.size) { // on page load (and after we know about some households) load home from the cache, or pick a random one if it's a new browser // NOTE: this must go before the effect below
-		const saved = households.get(Number(localStorage.getItem("home")))
-		home = saved ? saved : [...households.values()][0]
+	$effect(() => { if (0 < Object.keys(households).length) { // on page load (and after we know about some households) load home from the cache, or pick a random one if it's a new browser // NOTE: this must go before the effect below
+		const saved = localStorage.getItem("home")
+		home = saved ? households[Number(saved)] : Object.values(households)[0]
 	}})
 	$effect(() => { if (home) localStorage.setItem("home", String(home.id)) }) // put it in local storage to make sure the value is persisted across reloads
 	setContext("home", {get value() { return home }}) // make the current hosuehold available on all the pages
-	
-	// TODO: home = home && home in households ? home : data[0].id // if home is defined and in the set of households already, keep it selected, otherwise pick a random one (the first one)
-	
-	onMount(() => {
-		localStorage.getItem("home")
-	})
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
@@ -60,20 +54,19 @@
 			.select("id, name, head")
 			.single()
 		if (error) { console.error("Error in setting household name:", error); toast.error("Error in setting household name."); return }
-		const h = {...data, people: new SvelteMap(), meals: new SvelteMap()} as Household
-		households.set(data.id, h) // update the local data
+		const h = {...data, people: {}, meals: {}} as Household
+		households[data.id] = h // update the local data
 		return h
 	}
 	
-	async function updateHousehold(household: number, name: string): Promise<Household | undefined> {
+	async function updateHousehold(household: Household["id"], name: string): Promise<Household | undefined> {
 		const {error} = await supabase
 			.from("households")
 			.update({name})
 			.eq("id", household)
 		if (error) { console.error("Error in setting household name:", error); toast.error("Error in setting household name."); return }
-		const h = households.get(household)
-		h!.name = name // update the local data
-		return h
+		households[household].name = name // update the local data
+		return households[household]
 	}
 </script>
 
@@ -98,7 +91,7 @@
 					{#if home.head == data.session?.user.id}
 						<button class="btn flex-nowrap" onclick={() => { edit = home; $householdFormData = {name: home!.name} }}><Pencil class="h-5" />Edit</button>
 					{/if}
-					{#each households.values().filter(household => household.id != home?.id) as household (household.id)}
+					{#each Object.values(households).filter(household => household.id != home?.id) as household (household.id)}
 						<li class="flex flex-nowrap">
 							<button onclick={() => home = household} class="btn text-nowrap">{household.name}</button>
 						</li>

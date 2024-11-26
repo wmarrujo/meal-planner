@@ -4,7 +4,7 @@
 	import {toast} from "svelte-sonner"
 	import {Plus, X, LockOpen, Equal, ChevronLeft, ChevronRight, EllipsisVertical} from "lucide-svelte"
 	import {DateTime} from "luxon"
-	import {SvelteSet, SvelteMap} from "svelte/reactivity"
+	import {SvelteSet} from "svelte/reactivity"
 	import DishPicker from "./dish-picker.svelte"
 	import {dishes, type Household, type ISODateString} from "$lib/cache.svelte"
 	import {formatDate} from "$lib/utils"
@@ -19,7 +19,7 @@
 	
 	let days = $state<SvelteSet<ISODateString>>(new SvelteSet([DateTime.now().toISODate()!])) // all the days to show (all at the start of the day), as ISO Dates so they will be equal in the set
 	
-	$effect(() => { if (home) { home.meals.values().forEach(meal => days.add(meal.date.toISODate()!)) } else { days.clear(); days.add(DateTime.now().toISODate()!) }}) // make sure each of the days that a meal is on are in the days list, reset with no home
+	$effect(() => { if (home) { Object.values(home.meals).forEach(meal => days.add(meal.date.toISODate()!)) } else { days.clear(); days.add(DateTime.now().toISODate()!) }}) // make sure each of the days that a meal is on are in the days list, reset with no home
 	
 	////////////////////////////////////////////////////////////////////////////////
 	// MEAL
@@ -40,7 +40,7 @@
 			.select("id, household, name, day, time, amount, percent, restriction")
 			.single()
 		if (error) { console.error("Error in creating new meal:", error); toast.error("Error in creating new meal"); return }
-		home!.meals.set(data.id, {...data, date: DateTime.fromISO(data.day!), components: new SvelteMap(), whitelist: new SvelteSet(), blacklist: new SvelteSet()})
+		home!.meals[data.id] = {...data, date: DateTime.fromISO(data.day!), components: {}, whitelist: [], blacklist: []}
 	}
 	
 	// EDIT
@@ -51,7 +51,7 @@
 			.update({name})
 			.eq("id", meal)
 		if (error) { console.error("Error in setting meal name:", error); toast.error("Error in setting meal name."); return }
-		home!.meals.get(meal)!.name = name
+		home!.meals[meal].name = name
 	}
 	
 	async function toggleMealRestriction(meal: number, existingRestriction: string | null) {
@@ -65,7 +65,7 @@
 			.update({restriction: newRestriction})
 			.eq("id", meal)
 		if (error) { console.error("Error in setting meal restriction:", error); toast.error("Error in setting meal restriction."); return }
-		home!.meals.get(meal)!.restriction = newRestriction
+		home!.meals[meal].restriction = newRestriction
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
@@ -75,7 +75,7 @@
 			.update({amount})
 			.eq("id", meal)
 		if (error) { console.error("Error in setting meal restriction amount:", error); toast.error("Error in setting meal restriction amount."); return }
-		home!.meals.get(meal)!.amount = amount
+		home!.meals[meal].amount = amount
 	}
 	
 	async function setMealRestrictionPercent(meal: number, percent: boolean) {
@@ -84,7 +84,7 @@
 			.update({percent})
 			.eq("id", meal)
 		if (error) { console.error("Error in setting meal restriction percent:", error); toast.error("Error in setting meal restriction percent."); return }
-		home!.meals.get(meal)!.percent = percent
+		home!.meals[meal].percent = percent
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
@@ -98,7 +98,7 @@
 			.delete()
 			.eq("id", meal)
 		if (error) { console.error("Error in removing meal:", error); toast.error("Error in removing meal."); return }
-		home!.meals.delete(meal)
+		delete home!.meals[meal]
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -114,7 +114,7 @@
 			.select("meal, dish, amount, percent, restriction")
 			.single()
 		if (error) { console.error("Error in adding meal component:", error); toast.error("Error in adding meal component."); return }
-		home!.meals.get(meal)!.components.set(dish, data)
+		home!.meals[meal].components[dish] = data
 	}
 	
 	// EDIT
@@ -131,7 +131,7 @@
 			.eq("meal", meal)
 			.eq("dish", dish)
 		if (error) { console.error("Error in setting meal component restriction:", error); toast.error("Error in setting meal component restriction."); return }
-		home!.meals.get(meal)!.components.get(dish)!.restriction = newRestriction
+		home!.meals[meal].components[dish].restriction = newRestriction
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
@@ -142,7 +142,7 @@
 			.eq("meal", meal)
 			.eq("dish", dish)
 		if (error) { console.error("Error in setting meal component restriction amount:", error); toast.error("Error in setting meal component restriction amount."); return }
-		home!.meals.get(meal)!.components.get(dish)!.amount = amount
+		home!.meals[meal].components[dish].amount = amount
 	}
 	
 	async function toggleComponentRestrictionPercent(meal: number, dish: number, percent: boolean | null) {
@@ -154,7 +154,7 @@
 			.eq("meal", meal)
 			.eq("dish", dish)
 		if (error) { console.error("Error in setting meal component restriction percent:", error); toast.error("Error in setting meal component restriction percent."); return }
-		home!.meals.get(meal)!.components.get(dish)!.percent = newPercent
+		home!.meals[meal].components[dish].percent = newPercent
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
@@ -169,7 +169,7 @@
 			.eq("meal", meal)
 			.eq("dish", dish)
 		if (error) { console.error("Error in removing meal component:", error); toast.error("Error in removing meal component."); return }
-		home!.meals.get(meal)!.components.delete(dish)
+		delete home!.meals[meal].components[dish]
 	}
 </script>
 
@@ -194,7 +194,7 @@
 				<div class="flex border-r border-base-content p-2 min-w-14 justify-center items-center sticky left-0 bg-base-100">
 					<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(day)}</span>
 				</div>
-				{#each [...home!.meals.values().filter(meal => meal.date.startOf("day").equals(day))].sort((a, b) => a.date.diff(b.date, "minutes").as("minutes")) as meal (meal.id)}
+				{#each Object.values(home!.meals).filter(meal => meal.date.startOf("day").equals(day)).sort((a, b) => a.date.diff(b.date, "minutes").as("minutes")) as meal (meal.id)}
 					<div class="p-2 border-r border-base-content border-dotted group">
 						<div class="flex items-center gap-2 mb-5">
 							<input type="text" value={meal.name} onchange={event => setMealName(meal.id, event.currentTarget.value)} class="input text-xl p-1" />
@@ -220,8 +220,8 @@
 							<button onclick={() => removeMeal(meal.id)} class="btn btn-square btn-sm invisible group-hover:visible hover:bg-error"><X /></button>
 						</div>
 						<div class="grid grid-cols-[1fr_repeat(4,auto)] group/components gap-2 pl-4">
-							{#each meal.components.values() as component (component.dish)}
-								{@const dish = dishes.get(component.dish)!}
+							{#each Object.values(meal.components) as component (component.dish)}
+								{@const dish = dishes[component.dish]}
 								<span class="text-lg flex items-center">{dish.name}</span>
 								<button onclick={() => toggleComponentRestriction(meal.id, dish.id, component.restriction)} class="btn btn-square btn-sm">
 									{#if component.restriction == "exactly"}

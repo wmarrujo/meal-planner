@@ -7,7 +7,6 @@
 	import FoodPicker from "./food-picker.svelte"
 	import {toast} from "svelte-sonner"
 	import {dishes, foods, type Dish} from "$lib/cache.svelte"
-	import {SvelteMap} from "svelte/reactivity"
 	import {getContext, onMount} from "svelte"
 	import {type Household} from "$lib/cache.svelte"
 	
@@ -35,7 +34,7 @@
 					.select("id, name, manager")
 					.single()
 				if (error) { console.error("Error in inserting dish:", error); setError(form, "Error in inserting dish."); toast.error("Failed to insert dish.") }
-				else dishes.set(data.id, {...data, ingredients: new SvelteMap()})
+				else dishes[data.id] = {...data, ingredients: {}}
 			},
 		}), {form: newDishFormData} = newDishForm
 	
@@ -71,7 +70,7 @@
 			.eq("dish", dish)
 			.eq("food", food)
 		if (error) { console.error("Error deleting data:", error); toast.error("Failed to remove ingredient."); return }
-		dishes.get(dish)!.ingredients.delete(food)
+		delete dishes[dish].ingredients[food]
 	}
 	
 	async function setIngredientAmount(dish: number, food: number, amount: number) {
@@ -81,7 +80,7 @@
 			.eq("dish", dish)
 			.eq("food", food)
 		if (error) { console.error("Error updating ingredient amount:", error); toast.error("Failed to update ingredient amount."); return }
-		dishes.get(dish)!.ingredients.get(food)!.amount = amount
+		dishes[dish].ingredients[food].amount = amount
 	}
 	
 	async function setIngredientServing(dish: number, food: number, serving: number | null) {
@@ -91,7 +90,7 @@
 			.eq("dish", dish)
 			.eq("food", food)
 		if (error) { console.error("Error updating ingredient amount:", error); toast.error("Failed to update ingredient amount."); return }
-		dishes.get(dish)!.ingredients.get(food)!.serving = serving
+		dishes[dish].ingredients[food].serving = serving
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +101,7 @@
 <main class="flex h-[calc(100vh-4rem)]">
 	<div class="flex gap-4 p-4 grow overflow-y-scroll">
 		<!-- TODO: make a search bar -->
-		{#each dishes.values() as dish (dish.id)}
+		{#each Object.values(dishes) as dish (dish.id)}
 			<button onclick={() => { selected = dish }} class="card {dish.manager == data.session?.user.id ? "bg-base-300" : "bg-base-200"} text-base-content w-64 shadow-xl h-min">
 				<div class="card-body">
 					<div class="card-title">
@@ -133,9 +132,9 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each selected.ingredients.values() as ingredient (ingredient.food)}
-							{@const food = foods.get(ingredient.food)!}
-							{@const serving = ingredient.serving ? food.servings.get(ingredient.serving)! : undefined}
+						{#each Object.values(selected.ingredients) as ingredient (ingredient.food)}
+							{@const food = foods[ingredient.food]}
+							{@const serving = ingredient.serving ? food.servings[ingredient.serving] : undefined}
 							<tr class="group">
 								<th class="p-1">
 									<span class="grow">{food.name}</span>
@@ -155,7 +154,7 @@
 												</div>
 												<ul class="dropdown-content menu bg-base-300 z-10 w-full rounded-b-lg p-0">
 													<li><button onclick={() => setIngredientServing(selected!.id, food.id, null)}>{food.by_volume ? "ml" : "g"}</button></li>
-													{#each food.servings.values() ?? [] as serving (serving.id)}
+													{#each Object.values(food.servings) as serving (serving.id)}
 														<li><button onclick={() => setIngredientServing(selected!.id, food.id, serving.id)}>{serving.unit}</button></li>
 													{/each}
 												</ul>

@@ -4,6 +4,7 @@
 	import {getContext, onMount} from "svelte"
 	import {toast} from "svelte-sonner"
 	import {type Household} from "$lib/cache.svelte"
+	import {targetCalories, targetProtein} from "$lib/nutrition"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
 	
@@ -35,7 +36,7 @@
 			.select("id, household, name, age, sex, height, weight, activity, goal, visiting")
 			.single()
 		if (error) { console.error("Error in creating new person:", error); toast.error("Error in creating new person."); return }
-		home!.people.set(data.id, data)
+		home!.people[data.id] = data
 	}
 	
 	// EDIT
@@ -46,7 +47,7 @@
 			.update({name})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person name:", error); toast.error("Error in setting name."); return }
-		home!.people.get(person)!.name = name
+		home!.people[person].name = name
 	}
 	
 	async function setAge(person: number, age: number) {
@@ -55,7 +56,7 @@
 			.update({age})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person age:", error); toast.error("Error in setting age."); return }
-		home!.people.get(person)!.age = age
+		home!.people[person].age = age
 	}
 	
 	async function setSex(person: number, sex: number) {
@@ -64,7 +65,7 @@
 			.update({sex})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person sex:", error); toast.error("Error in setting sex."); return }
-		home!.people.get(person)!.sex = sex
+		home!.people[person].sex = sex
 	}
 	
 	async function setHeight(person: number, height: number) {
@@ -73,7 +74,7 @@
 			.update({height})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person height:", error); toast.error("Error in setting height."); return }
-		home!.people.get(person)!.height = height
+		home!.people[person].height = height
 	}
 	
 	async function setWeight(person: number, weight: number) {
@@ -82,7 +83,7 @@
 			.update({weight})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person weight:", error); toast.error("Error in setting weight."); return }
-		home!.people.get(person)!.weight = weight
+		home!.people[person].weight = weight
 	}
 	
 	async function setActivity(person: number, activity: number) {
@@ -91,7 +92,7 @@
 			.update({activity})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person activity:", error); toast.error("Error in setting activity."); return }
-		home!.people.get(person)!.activity = activity
+		home!.people[person].activity = activity
 	}
 	
 	async function setGoal(person: number, goal: number) {
@@ -100,7 +101,7 @@
 			.update({goal})
 			.eq("id", person)
 		if (error) { console.error("Error in setting person goal:", error); toast.error("Error in setting goal."); return }
-		home!.people.get(person)!.goal = goal
+		home!.people[person].goal = goal
 	}
 	
 	// REMOVE
@@ -112,7 +113,7 @@
 	<thead>
 		<tr>
 			<th class="w-24 text-right text-base">Name</th>
-			{#each home!.people.values() as person (person.id)}
+			{#each Object.values(home!.people) as person (person.id)}
 				<td class="w-32">
 					<input type="text" value={person.name} onchange={event => setName(person.id, event.currentTarget.value)} placeholder="Name" class="w-full input" />
 				</td>
@@ -125,7 +126,7 @@
 	<tbody>
 		<tr>
 			<th class="text-right">Age</th>
-			{#each home!.people.values() as person (person.id)}
+			{#each Object.values(home!.people) as person (person.id)}
 				<td>
 					<input type="number" value={person.age} onchange={event => setAge(person.id, Number(event.currentTarget.value))} class="w-2/3 pr-0 text-lg text-right input input-sm">
 					<span class="w-1/3 text-left">yrs</span>
@@ -135,7 +136,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Sex</th>
-			{#each home!.people.values() as person (person.id)}
+			{#each Object.values(home!.people) as person (person.id)}
 				<td>
 					<div class="flex items-center">
 						<span class="text-lg pr-1" title="Female">♀</span>
@@ -148,7 +149,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Height</th>
-			{#each home!.people.values() as person (person.id)}
+			{#each Object.values(home!.people) as person (person.id)}
 				<td>
 					<input type="number" value={person.height} onchange={event => setHeight(person.id, Number(event.currentTarget.value))} class="w-2/3 pr-0 text-lg text-right input input-sm">
 					<span class="w-1/3 text-left">cm</span>
@@ -158,7 +159,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Weight</th>
-			{#each home!.people.values() as person (person.id)}
+			{#each Object.values(home!.people) as person (person.id)}
 				<td>
 					<input type="number" value={person.weight} onchange={event => setWeight(person.id, Number(event.currentTarget.value))} class="w-2/3 pr-0 text-lg text-right input input-sm">
 					<span class="w-1/3 text-left">kg</span>
@@ -168,7 +169,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Activity</th>
-			{#each home!.people.values() as person (person.id)}
+			{#each Object.values(home!.people) as person (person.id)}
 				<td>
 					<input type="range" value={person.activity} min={0} max={4} step={1} onchange={event => setActivity(person.id, Number(event.currentTarget.value))} class="range">
 					<div class="flex justify-between w-full px-2 text-xs">
@@ -180,12 +181,22 @@
 		</tr>
 		<tr>
 			<th class="text-right">Goal</th>
-			{#each home!.people.values() as person (person.id)}
+			{#each Object.values(home!.people) as person (person.id)}
 				<td>
 					<input type="range" value={person.goal} min={-2} max={2} step={1} onchange={event => setGoal(person.id, Number(event.currentTarget.value))} class="range">
 					<div class="flex justify-between w-full px-2 text-xs">
 						<ChevronsDown /><ChevronDown /><Minus /><ChevronUp /><ChevronsUp />
 					</div>
+				</td>
+			{/each}
+			<td></td>
+		</tr>
+		<tr>
+			<th class="text-right">Daily Nutrition</th>
+			{#each Object.values(home!.people) as person (person.id)}
+				<td>
+					<span>calories: {targetCalories(person.age, person.sex, person.height, person.weight, person.goal, person.activity).toFixed(0)}</span>
+					<span>protein: {targetProtein(person.weight, person.activity).toFixed(0)}</span>
 				</td>
 			{/each}
 			<td></td>
