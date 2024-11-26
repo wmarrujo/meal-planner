@@ -1,5 +1,5 @@
 <script lang="ts">
-	import {Plus, Turtle, Rabbit, ChevronsDown, ChevronDown, Minus, ChevronUp, ChevronsUp} from "lucide-svelte"
+	import {Plus, Turtle, Rabbit, ChevronsDown, ChevronDown, Minus, ChevronUp, ChevronsUp, Trash2} from "lucide-svelte"
 	import {supabase} from "$lib/supabase"
 	import {getContext, onMount} from "svelte"
 	import {toast} from "svelte-sonner"
@@ -106,7 +106,14 @@
 	
 	// REMOVE
 	
-	// TODO: remove person
+	async function removePerson(person: number) {
+		const {error} = await supabase
+			.from("people")
+			.delete()
+			.eq("id", person)
+		if (error) { console.error("Error in removing person:", error); toast.error("Error in removing goal."); return }
+		delete home!.people[person]
+	}
 </script>
 
 <table class="table table-fixed table-pin-rows table-pin-cols w-fit [&>*>tr>td]:border-x [&>*>tr>td]:border-base-200  [&>tbody>tr]:border-y-0">
@@ -114,8 +121,11 @@
 		<tr>
 			<th class="w-24 text-right text-base">Name</th>
 			{#each Object.values(home!.people) as person (person.id)}
-				<td class="w-32">
-					<input type="text" value={person.name} onchange={event => setName(person.id, event.currentTarget.value)} placeholder="Name" class="w-full input" />
+				<td class="w-40 group">
+					<div class="flex items-center gap-2">
+						<input type="text" value={person.name} onchange={event => setName(person.id, event.currentTarget.value)} placeholder="Name" class="w-full input p-0" />
+						<button class="btn btn-square btn-sm hidden group-hover:flex hover:btn-error" onclick={() => removePerson(person.id)}><Trash2 /></button>
+					</div>
 				</td>
 			{/each}
 			<td class="w-32">
@@ -195,8 +205,10 @@
 			<th class="text-right">Daily Nutrition</th>
 			{#each Object.values(home!.people) as person (person.id)}
 				<td>
-					<span>calories: {targetCalories(person.age, person.sex, person.height, person.weight, person.goal, person.activity).toFixed(0)}</span>
-					<span>protein: {targetProtein(person.weight, person.activity).toFixed(0)}</span>
+					<div class="flex flex-col">
+						<div class="flex flex-nowrap"><div class="grow">calories:</div><div class="text-right">{targetCalories(person.age, person.sex, person.height, person.weight, person.goal, person.activity).toFixed(0)}</div><div class="opacity-60 w-7 pl-1">kcal</div></div>
+						<div class="flex flex-nowrap"><div class="grow">protein:</div><div class="text-right">{targetProtein(person.weight, person.activity).toFixed(0)}</div><div class="opacity-60 w-7 pl-1">g</div></div>
+					</div>
 				</td>
 			{/each}
 			<td></td>

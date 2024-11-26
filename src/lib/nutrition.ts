@@ -25,6 +25,7 @@ export function targetCalories(age: number, sex: number, height: number, weight:
 
 export function targetProtein(weight: number, activity: number): number {
 	// equation from: https://pressbooks.calstate.edu/nutritionandfitness/chapter/7-5-estimating-protein-needs/
+	// return weight * (0.3 * activity + 0.8) // linear version, not sure if it's the correct approximation
 	return weight * (0.05 * activity**2 + 0.1 * activity + 0.8)
 }
 
