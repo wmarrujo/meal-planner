@@ -1,5 +1,5 @@
 <script lang="ts">
-	import {getContext, onMount} from "svelte"
+	import {getContext} from "svelte"
 	import {dishes} from "$lib/cache.svelte"
 	import type {Household, ISODateString, Meal, Dish, Person} from "$lib/cache.svelte"
 	import {calculateHousehold} from "$lib/solver"
@@ -12,10 +12,10 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
+	$effect(() => { if (home && !home.solution) home.solution = calculateHousehold(home) }) // calculate solution if needed
+	
 	let days = $state<SvelteSet<ISODateString>>(new SvelteSet([DateTime.now().toISODate()!])) // all the days to show (all at the start of the day), as ISO Dates so they will be equal in the set
 	$effect(() => { if (home) { Object.values(home.meals).forEach(meal => { if (meal.day) days.add(meal.day) }) } else { days.clear(); days.add(DateTime.now().toISODate()!) }}) // make sure each of the days that a meal is on are in the days list, reset with no home
-	
-	$effect(() => { if (home && !home.solution) home.solution = calculateHousehold(home) }) // calculate solution if needed
 	
 	let schedule = $derived.by(() => {
 		let temp: Record<ISODateString, Record<Meal["id"], Record<Dish["id"], Record<Person["id"], number>>>> = {}
