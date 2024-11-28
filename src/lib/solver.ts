@@ -1,6 +1,6 @@
 import {solve, type Model} from "yalps"
 import type {Household, Person, Meal, Dish, ISODateString} from "$lib/cache.svelte"
-import {type Variable, LinearEquation, LE, sum} from "$lib/linear-algebra"
+import {type Variable, EQ, TERMS, TERM, SUM, CONST, type LinearEquation} from "$lib/linear-algebra"
 import {type Nutrition, targetCalories, targetProtein, nutritionOfDish} from "$lib/nutrition"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,30 +70,55 @@ function makeModels(household: Household): Record<ISODateString, Record<Person["
 }
 
 function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): Model {
-	const nutritonByDish = new Map(meals.flatMap(meal => Object.keys(meal.components)).map(dish => [Number(dish), nutritionOfDish(Number(dish))])) // TODO: maybe pass these in already calculated?
+	const nutritonByDish = meals.reduce((acc, meal) => Object.values(meal.components).reduce((a, component) => { a[component.dish] = nutritionOfDish(component.dish); return a }, acc), {} as Record<Dish["id"], Nutrition>) // TODO: maybe pass these in already calculated?
 	
-	// Variables
+	// TERMIABLES
+	
 	const servings = (meal: number, dish: number) => `servings_${meal}_${dish}` // NOTE: it uses underscores and position to get the ids back out
 	const calorieError = "calorie_error"
 	const proteinError = "protein_error"
 	
 	// Snippets
-	const totalCalories = sum(meals, meal => sum(Object.keys(meal.components), dish => LE({[servings(meal.id, Number(dish))]: nutritonByDish.get(Number(dish))!.calories})))
-	const totalProtein = sum(meals, meal => sum(Object.keys(meal.components), dish => LE({[servings(meal.id, Number(dish))]: nutritonByDish.get(Number(dish))!.protein})))
 	
-	// Objective
-	const objective =
-		LE({[calorieError]: 1}).times(weights.calories)
-		.plus(LE({[proteinError]: 1}).times(weights.protein))
+	const totalCalories = SUM(meals, meal => SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritonByDish[component.dish].calories)))
+	const totalProtein = SUM(meals, meal => SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritonByDish[component.dish].protein)))
 	
-	// Constraints
-	const defineCalorieErrorPositive = new LinearEquation(LE({[calorieError]: 1}), ">", totalCalories.minus(targets.calories).times(1 / targets.calories))
-	const defineCalorieErrorNegative = new LinearEquation(LE({[calorieError]: 1}), ">", totalCalories.minus(targets.calories).times(-1 / targets.calories))
-	const defineProteinErrorPositive = new LinearEquation(LE({[proteinError]: 1}), ">", totalProtein.minus(targets.protein).times(1 / targets.protein))
-	const defineProteinErrorNegative = new LinearEquation(LE({[proteinError]: 1}), ">", totalProtein.minus(targets.protein).times(-1 / targets.protein))
-	const mustHavePositiveCalories = new LinearEquation(0, "<", totalCalories)
-	const mustHavePositiveProtein = new LinearEquation(0, "<", totalProtein)
-	// TODO: constraints for locking values
+	// OBJECTIVE
+	
+	const objective = TERMS({[calorieError]: weights.calories, [proteinError]: weights.protein})
+	
+	// CONSTRAINTS
+	
+	// define error variables
+	const defineCalorieErrorPositive = EQ(TERM(calorieError, 1), ">", totalCalories.minus(targets.calories).times(1 / targets.calories))
+	const defineCalorieErrorNegative = EQ(TERM(calorieError, 1), ">", totalCalories.minus(targets.calories).times(-1 / targets.calories))
+	const defineProteinErrorPositive = EQ(TERM(proteinError, 1), ">", totalProtein.minus(targets.protein).times(1 / targets.protein))
+	const defineProteinErrorNegative = EQ(TERM(proteinError, 1), ">", totalProtein.minus(targets.protein).times(-1 / targets.protein))
+	
+	// sanity checks
+	const mustHavePositiveCalories = EQ(0, "<", totalCalories)
+	const mustHavePositiveProtein = EQ(0, "<", totalProtein)
+	
+	// restrict servings for dishes that are explicitly restricted
+	const restrictServingsForDishesThatAreExplicitlyRestricted: Record<string, LinearEquation> = {}
+	for (const meal of meals) { // for each meal
+		for (const component of Object.values(meal.components)) { // for each dish
+			const eq = component.restriction == "exactly" ? "=" : component.restriction == "no_less_than" ? ">" : "<"
+			if (component.restriction) { restrictServingsForDishesThatAreExplicitlyRestricted[`restrictServingsForDishesThatAreExplicitlyRestricted_${meal}_${component.dish}`] =
+				component.percent === true ?        EQ(TERM(servings(meal.id, component.dish), nutritonByDish[component.dish].calories), eq, SUM(Object.values(meal.components), c => TERM(servings(meal.id, c.dish), nutritionOfDish(c.dish).calories)).times(component.amount)) // if there is a percentage restriction
+				: component.percent === false ?     EQ(TERM(servings(meal.id, component.dish)), eq, CONST(component.amount / nutritionOfDish(component.dish).calories)) // if there is a calorie restriction
+				: /*(component.percent === null)*/  EQ(TERM(servings(meal.id, component.dish)), eq, CONST(component.amount))  // if there is a serving restriction
+		}}
+	}
+	
+	// restrict servings for meals that are explicitly restricted
+	const restrictServingsForMealsThatAreExplicitlyRestricted: Record<string, LinearEquation> = {}
+	for (const meal of meals) { // for each meal
+		const eq = meal.restriction == "exactly" ? "=" : meal.restriction == "no_less_than" ? ">" : "<"
+		if (meal.restriction) { restrictServingsForMealsThatAreExplicitlyRestricted[`restrictServingsForMealsThatAreExplicitlyRestricted_${meal}`] = meal.percent
+			? EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritonByDish[component.dish].calories)), eq, SUM(meals, m => SUM(Object.values(m.components), c => TERM(servings(m.id, c.dish), nutritionOfDish(c.dish).calories))).times(meal.amount)) // if there is a percentage restriction
+			: EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritonByDish[component.dish].calories)), eq, CONST(meal.amount)) // if there is a calorie restriction
+	}}
 	
 	// Model
 	
@@ -107,6 +132,8 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 			defineProteinErrorNegative: defineProteinErrorNegative.constraint,
 			mustHavePositiveCalories: mustHavePositiveCalories.constraint,
 			mustHavePositiveProtein: mustHavePositiveProtein.constraint,
+			...Object.entries(restrictServingsForDishesThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.constraint; return acc}, {} as Record<string, LinearEquation["constraint"]>),
+			...Object.entries(restrictServingsForMealsThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.constraint; return acc}, {} as Record<string, LinearEquation["constraint"]>),
 		},
 		variables: transpose({ // really should be named objective expression and terms-side of the constraint equations in standard form
 			objective: objective.terms,
@@ -116,6 +143,8 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 			defineProteinErrorNegative: defineProteinErrorNegative.variables,
 			mustHavePositiveCalories: mustHavePositiveCalories.variables,
 			mustHavePositiveProtein: mustHavePositiveProtein.variables,
+			...Object.entries(restrictServingsForDishesThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.variables; return acc}, {} as Record<string, LinearEquation["variables"]>),
+			...Object.entries(restrictServingsForMealsThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.variables; return acc}, {} as Record<string, LinearEquation["variables"]>),
 		}),
 	}
 }

@@ -66,14 +66,28 @@ export class LinearEquation {
 
 // BUILDERS
 
-export function LE(expression: Record<Variable, number> | number): LinearExpression {
+export function TERMS(expression: Record<Variable, number> | number): LinearExpression {
 	const temp = new LinearExpression()
 	if (typeof expression === "number") temp.constant = expression
 	else Object.entries(expression).forEach(([variable, value]) => temp.terms.set(variable, value))
 	return temp
 }
 
-export function sum<T>(iterable: Iterable<T>, linearize: (item: T) => LinearExpression | number): LinearExpression {
+export function CONST(constant: number): LinearExpression {
+	const temp = new LinearExpression()
+	temp.constant = constant
+	return temp
+}
+
+export function EQ(left: LinearExpression | number, evaluator: "=" | "<" | ">", right: LinearExpression | number): LinearEquation {
+	return new LinearEquation(left, evaluator, right)
+}
+
+export function TERM(variable: Variable, scalar?: number): LinearExpression {
+	return TERMS({[variable]: scalar ?? 1})
+}
+
+export function SUM<T>(iterable: Iterable<T>, linearize: (item: T) => LinearExpression | number): LinearExpression {
 	let temp = new LinearExpression()
 	for (const t of iterable) { temp = temp.plus(linearize(t)) }
 	return temp

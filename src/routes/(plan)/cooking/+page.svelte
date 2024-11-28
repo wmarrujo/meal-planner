@@ -21,7 +21,7 @@
 	
 	const servings = $derived.by(() => {
 		const temp: Record<Dish["id"], number> = {}
-		if (home) {
+		if (home && home.solution) {
 			meals.forEach(meal =>
 				Object.values(home.meals[meal].components).forEach(component => {
 					temp[component.dish] ??= 0
@@ -31,7 +31,6 @@
 		}
 		return temp
 	})
-	$effect(() => { })
 </script>
 
 {#if home && home.solution}

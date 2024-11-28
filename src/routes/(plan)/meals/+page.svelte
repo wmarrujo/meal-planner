@@ -202,9 +202,9 @@
 								{#if meal.restriction == "exactly"}
 									<Equal />
 								{:else if meal.restriction == "no_less_than"}
-									<ChevronLeft />
-								{:else if meal.restriction == "no_more_than"}
 									<ChevronRight />
+								{:else if meal.restriction == "no_more_than"}
+									<ChevronLeft />
 								{:else}
 									<LockOpen />
 								{/if}
@@ -227,9 +227,9 @@
 									{#if component.restriction == "exactly"}
 										<Equal />
 									{:else if component.restriction == "no_less_than"}
-										<ChevronLeft />
-									{:else if component.restriction == "no_more_than"}
 										<ChevronRight />
+									{:else if component.restriction == "no_more_than"}
+										<ChevronLeft />
 									{:else}
 										<LockOpen />
 									{/if}

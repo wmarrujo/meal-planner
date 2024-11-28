@@ -43,8 +43,8 @@ export type Meal = {
 	time: ISOTimeString | null
 	date: DateTime // day + time, parsed
 	amount: number
-	percent: boolean | null
-	restriction: Enums<"restriction"> | null
+	percent: boolean // restrict by: true = percent, false = kcal
+	restriction: Enums<"restriction"> | null // how to restrict it, or null = unrestricted
 	components: Record<Dish["id"], Component>
 	blacklist: Array<Person["id"]> // exclude these people from the meal when they otherwise would be (only applies to non-visitors)
 	whitelist: Array<Person["id"]> // include these people in the meal when they otherwise wouldn't be (only applies to visitors)
@@ -54,8 +54,8 @@ export type Component = {
 	meal: Meal["id"]
 	dish: Dish["id"]
 	amount: number
-	percent: boolean | null
-	restriction: string | null
+	percent: boolean | null // restrict by: true = percent, false = kcal, null = serving
+	restriction: Enums<"restriction"> | null // how to restrict it, or null = unrestricted
 }
 
 export type Dish = {

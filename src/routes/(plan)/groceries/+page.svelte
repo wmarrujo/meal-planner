@@ -33,7 +33,6 @@
 		}
 		return temp
 	})
-	$effect(() => { })
 </script>
 
 {#if home && home.solution}
