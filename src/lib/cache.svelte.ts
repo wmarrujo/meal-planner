@@ -67,15 +67,15 @@ export type Dish = {
 
 export type Ingredient = {
 	food: Food["id"]
-	amount: number
-	serving: Serving["id"] | null
+	amount: number // the number of servings of the food
+	serving: Serving["id"] | null // the selected serving (null means g or ml depending on the food by_volume parameter)
 }
 
 export type Food = {
 	id: number
 	name: string
 	servings: Record<Serving["id"], Serving> // the serving options available
-	by_volume: boolean
+	by_volume: boolean // whether the food is measured by mass (weight) or volume
 	calories: number | null
 	protein: number | null
 }
@@ -83,10 +83,10 @@ export type Food = {
 export type Serving = {
 	id: number
 	food: Food["id"]
-	amount: number
-	amount_of_unit: number
-	unit: string | null
-	modifier: string | null
+	amount: number // the number of g or ml this serving represents (depending on the by_volume of the food) ex: "1/8 pie" -> 50g
+	amount_of_unit: number // the amount of the unit that this serving is. ex: "1/8 pie" -> 0.125
+	unit: string | null // the unit of the serving. ex: "1/8 pie" -> "pie"
+	modifier: string | null // the modifier on the unit. ex: "crushed", "sliced", "dry"
 }
 
 ////////////////////////////////////////////////////////////////////////////////
