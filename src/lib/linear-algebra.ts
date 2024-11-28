@@ -4,6 +4,11 @@ export class LinearExpression {
 	constant: number = 0
 	terms: Map<Variable, number> = new Map()
 	
+	toString() {
+		const terms = [...this.terms.entries()].map(([variable, value]) => `${variable} * ${value}`).join(" + ")
+		return `${terms} + ${this.constant}`
+	}
+	
 	plus(expression: LinearExpression | number): LinearExpression {
 		const temp = new LinearExpression()
 		temp.terms = new Map(this.terms) // work with a copy of the left's terms
@@ -45,6 +50,10 @@ export class LinearEquation {
 		this.evaluator = evaluator
 		if (typeof left === "number") { const e = new LinearExpression(); e.constant = left; this.left = e } else { this.left = left }
 		if (typeof right === "number") { const e = new LinearExpression(); e.constant = right; this.right = e } else { this.right = right }
+	}
+	
+	toString() {
+		return `${this.left} ${this.evaluator} ${this.right}`
 	}
 	
 	// Export for YALPS

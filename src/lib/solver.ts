@@ -46,7 +46,7 @@ function makeModels(household: Household): Record<ISODateString, Record<Person["
 	}), new Map())
 	const weightsByPerson: Map<number, Nutrition> = Object.values(household.people).reduce((acc, person) => acc.set(person.id, {
 		calories: 1, // TODO: add to model & database
-		protein: 1, // TODO: add to model & database
+		protein: 0, // TODO: add to model & database // FIXME: care some about protein
 	}), new Map())
 	
 	const days = Map.groupBy(Object.values(household.meals).filter(meal => meal.day), meal => meal.day!)
@@ -88,14 +88,20 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 	// CONSTRAINTS
 	
 	// define error variables
-	const defineCalorieErrorPositive = EQ(TERM(calorieError, 1), ">", totalCalories.minus(targets.calories).times(1 / targets.calories))
-	const defineCalorieErrorNegative = EQ(TERM(calorieError, 1), ">", totalCalories.minus(targets.calories).times(-1 / targets.calories))
-	const defineProteinErrorPositive = EQ(TERM(proteinError, 1), ">", totalProtein.minus(targets.protein).times(1 / targets.protein))
-	const defineProteinErrorNegative = EQ(TERM(proteinError, 1), ">", totalProtein.minus(targets.protein).times(-1 / targets.protein))
+	const defineErrors = {
+		defineCalorieErrorPositive: EQ(TERM(calorieError), ">", totalCalories.minus(targets.calories).times(1 / targets.calories)),
+		defineCalorieErrorNegative: EQ(TERM(calorieError), ">", totalCalories.minus(targets.calories).times(-1 / targets.calories)),
+		defineProteinErrorPositive: EQ(TERM(proteinError), ">", totalProtein.minus(targets.protein).times(1 / targets.protein)),
+		defineProteinErrorNegative: EQ(TERM(proteinError), ">", totalProtein.minus(targets.protein).times(-1 / targets.protein)),
+	}
 	
 	// sanity checks
-	const mustHavePositiveCalories = EQ(0, "<", totalCalories)
-	const mustHavePositiveProtein = EQ(0, "<", totalProtein)
+	const mustHavePositiveServings: Record<string, LinearEquation> = {}
+	for (const meal of meals) {
+		for (const component of Object.values(meal.components)) {
+			mustHavePositiveServings[`noNegatives_${meal.id}_${component.dish}`] = EQ(0, "<", TERM(servings(meal.id, component.dish)))
+		}
+	}
 	
 	// restrict servings for dishes that are explicitly restricted
 	const restrictServingsForDishesThatAreExplicitlyRestricted: Record<string, LinearEquation> = {}
@@ -124,25 +130,17 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 		direction: "minimize" as const,
 		objective: "objective", // the name of the objective expression
 		constraints: { // really should be named the constraints' constant-side and equality or inequality
-			defineCalorieErrorPositive: defineCalorieErrorPositive.constraint,
-			defineCalorieErrorNegative: defineCalorieErrorNegative.constraint,
-			defineProteinErrorPositive: defineProteinErrorPositive.constraint,
-			defineProteinErrorNegative: defineProteinErrorNegative.constraint,
-			mustHavePositiveCalories: mustHavePositiveCalories.constraint,
-			mustHavePositiveProtein: mustHavePositiveProtein.constraint,
-			...Object.entries(restrictServingsForDishesThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.constraint; return acc}, {} as Record<string, LinearEquation["constraint"]>),
-			...Object.entries(restrictServingsForMealsThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.constraint; return acc}, {} as Record<string, LinearEquation["constraint"]>),
+			...Object.entries(defineErrors).reduce((acc, [name, equation]) => { acc[name] = equation.constraint; return acc }, {} as Record<string, LinearEquation["constraint"]>),
+			...Object.entries(mustHavePositiveServings).reduce((acc, [name, equation]) => { acc[name] = equation.constraint; return acc }, {} as Record<string, LinearEquation["constraint"]>),
+			...Object.entries(restrictServingsForDishesThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.constraint; return acc }, {} as Record<string, LinearEquation["constraint"]>),
+			...Object.entries(restrictServingsForMealsThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.constraint; return acc }, {} as Record<string, LinearEquation["constraint"]>),
 		},
 		variables: transpose({ // really should be named objective expression and terms-side of the constraint equations in standard form
 			objective: objective.terms,
-			defineCalorieErrorPositive: defineCalorieErrorPositive.variables,
-			defineCalorieErrorNegative: defineCalorieErrorNegative.variables,
-			defineProteinErrorPositive: defineProteinErrorPositive.variables,
-			defineProteinErrorNegative: defineProteinErrorNegative.variables,
-			mustHavePositiveCalories: mustHavePositiveCalories.variables,
-			mustHavePositiveProtein: mustHavePositiveProtein.variables,
-			...Object.entries(restrictServingsForDishesThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.variables; return acc}, {} as Record<string, LinearEquation["variables"]>),
-			...Object.entries(restrictServingsForMealsThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.variables; return acc}, {} as Record<string, LinearEquation["variables"]>),
+			...Object.entries(defineErrors).reduce((acc, [name, equation]) => { acc[name] = equation.variables; return acc }, {} as Record<string, LinearEquation["variables"]>),
+			...Object.entries(mustHavePositiveServings).reduce((acc, [name, equation]) => { acc[name] = equation.variables; return acc }, {} as Record<string, LinearEquation["variables"]>),
+			...Object.entries(restrictServingsForDishesThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.variables; return acc }, {} as Record<string, LinearEquation["variables"]>),
+			...Object.entries(restrictServingsForMealsThatAreExplicitlyRestricted).reduce((acc, [name, equation]) => { acc[name] = equation.variables; return acc }, {} as Record<string, LinearEquation["variables"]>),
 		}),
 	}
 }
