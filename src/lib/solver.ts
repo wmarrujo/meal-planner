@@ -45,8 +45,8 @@ function makeModels(household: Household): Record<ISODateString, Record<Person["
 		protein: targetProtein(person.weight, person.activity), // TODO: maybe put these together, all taking a person? or put it in a getter on the cache
 	}), new Map())
 	const weightsByPerson: Map<number, Nutrition> = Object.values(household.people).reduce((acc, person) => acc.set(person.id, {
-		calories: 1, // TODO: add to model & database
-		protein: 0, // TODO: add to model & database // FIXME: care some about protein
+		calories: 10, // TODO: add to model & database
+		protein: 1, // TODO: add to model & database
 	}), new Map())
 	
 	const days = Map.groupBy(Object.values(household.meals).filter(meal => meal.day), meal => meal.day!)
@@ -108,8 +108,8 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 	for (const meal of meals) { // for each meal
 		for (const component of Object.values(meal.components)) { // for each dish
 			const eq = component.restriction == "exactly" ? "=" : component.restriction == "no_less_than" ? ">" : "<"
-			if (component.restriction) { restrictServingsForDishesThatAreExplicitlyRestricted[`restrictServingsForDishesThatAreExplicitlyRestricted_${meal}_${component.dish}`] =
-				component.percent === true ?        EQ(TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories), eq, SUM(Object.values(meal.components), c => TERM(servings(meal.id, c.dish), nutritionByDish[c.dish].calories)).times(component.amount)) // if there is a percentage restriction
+			if (component.restriction) { restrictServingsForDishesThatAreExplicitlyRestricted[`restrictServingsForDishesThatAreExplicitlyRestricted_${meal.id}_${component.dish}`] =
+				component.percent === true ?        EQ(TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories), eq, SUM(Object.values(meal.components), c => TERM(servings(meal.id, c.dish), nutritionByDish[c.dish].calories)).times(component.amount / 100)) // if there is a percentage restriction
 				: component.percent === false ?     EQ(TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories), eq, CONST(component.amount)) // if there is a calorie restriction
 				: /*(component.percent === null)*/  EQ(TERM(servings(meal.id, component.dish)), eq, CONST(component.amount)) // if there is a serving restriction
 		}}
@@ -119,12 +119,19 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 	const restrictServingsForMealsThatAreExplicitlyRestricted: Record<string, LinearEquation> = {}
 	for (const meal of meals) { // for each meal
 		const eq = meal.restriction == "exactly" ? "=" : meal.restriction == "no_less_than" ? ">" : "<"
-		if (meal.restriction) { restrictServingsForMealsThatAreExplicitlyRestricted[`restrictServingsForMealsThatAreExplicitlyRestricted_${meal}`] = meal.percent
-			? EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories)), eq, SUM(meals, m => SUM(Object.values(m.components), c => TERM(servings(m.id, c.dish), nutritionByDish[c.dish].calories))).times(meal.amount)) // if there is a percentage restriction
+		if (meal.restriction) { restrictServingsForMealsThatAreExplicitlyRestricted[`restrictServingsForMealsThatAreExplicitlyRestricted_${meal.id}`] = meal.percent
+			? EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories)), eq, SUM(meals, m => SUM(Object.values(m.components), c => TERM(servings(m.id, c.dish), nutritionByDish[c.dish].calories))).times(meal.amount / 100)) // if there is a percentage restriction
 			: EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories)), eq, CONST(meal.amount)) // if there is a calorie restriction
 	}}
 	
 	// Model
+	
+	// debug logs
+	// console.log("----")
+	// Object.entries(defineErrors).forEach(([key, equation]) => console.log(`define errors -> ${key} -> ${equation}`))
+	// Object.entries(mustHavePositiveServings).forEach(([key, equation]) => console.log(`mustHavePositiveServings -> ${key} -> ${equation}`))
+	// Object.entries(restrictServingsForDishesThatAreExplicitlyRestricted).forEach(([key, equation]) => console.log(`restrictServingsForDishesThatAreExplicitlyRestricted -> ${key} -> ${equation}`))
+	// Object.entries(restrictServingsForMealsThatAreExplicitlyRestricted).forEach(([key, equation]) => console.log(`restrictServingsForMealsThatAreExplicitlyRestricted -> ${key} -> ${equation}`))
 	
 	return {
 		direction: "minimize" as const,
