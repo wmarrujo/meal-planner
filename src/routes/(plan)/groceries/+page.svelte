@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {getContext} from "svelte"
-	import type {Household, ISODateString, Meal} from "$lib/cache.svelte"
+	import {dishes, foods} from "$lib/cache.svelte"
+	import type {Household, ISODateString, Meal, Food} from "$lib/cache.svelte"
 	import {calculateHousehold} from "$lib/solver"
 	import {SvelteSet} from "svelte/reactivity"
 	import {formatDate} from "$lib/utils"
@@ -15,8 +16,25 @@
 	const meals = $state(new SvelteSet<Meal["id"]>()) // the meals that are selected
 	$effect(() => home ? Object.keys(home?.meals).forEach(meal => meals.add(Number(meal))) : meals.clear()) // refresh whenever home is changed
 	
-	let days = $state<SvelteSet<ISODateString>>(new SvelteSet()) // all the days to show (all at the start of the day), as ISO Dates so they will be equal in the set
+	const days = $state<SvelteSet<ISODateString>>(new SvelteSet()) // all the days to show (all at the start of the day), as ISO Dates so they will be equal in the set
 	$effect(() => { if (home) { Object.values(home.meals).forEach(meal => { if (meal.day) days.add(meal.day) }) } else { days.clear() }}) // make sure each of the days that a meal is on are in the days list, reset with no home
+	
+	// const groceries = $state({} as Record<Food["id"], number>) // the number of grams of each of these foods
+	const groceries = $derived.by(() => {
+		const temp: Record<Food["id"], number> = {}
+		if (home) {
+			meals.forEach(meal =>
+				Object.values(home.meals[meal].components).forEach(component => {
+					Object.values(dishes[component.dish].ingredients).forEach(ingredient => {
+						temp[ingredient.food] ??= 0
+						temp[ingredient.food] += component.amount * ingredient.amount
+					})
+				})
+			)
+		}
+		return temp
+	})
+	$effect(() => { })
 </script>
 
 {#if home && home.solution}
@@ -46,6 +64,11 @@
 		</div>
 		<div>
 			<h2 class="text-2xl border-b border-base-300 w-full mb-2 px-2">Groceries</h2>
+			<div class="flex flex-col">
+				{#each Object.entries(groceries) as [food, amount] (food)}
+					<div class="flex gap-2"><div class="w-10 text-right">{amount}</div><div class="w-5">{foods[Number(food)].by_volume ? "ml" : "g"}</div><div>{foods[Number(food)].name}</div></div>
+				{/each}
+			</div>
 		</div>
 	</main>
 {:else}
