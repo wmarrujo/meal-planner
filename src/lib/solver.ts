@@ -68,7 +68,7 @@ function makeModels(household: Household): Record<ISODateString, Record<Person["
 }
 
 function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): Model {
-	const nutritonByDish = meals.reduce((acc, meal) => Object.values(meal.components).reduce((a, component) => { a[component.dish] = nutritionOfDish(component.dish); return a }, acc), {} as Record<Dish["id"], Nutrition>) // TODO: maybe pass these in already calculated?
+	const nutritionByDish = meals.reduce((acc, meal) => Object.values(meal.components).reduce((a, component) => { a[component.dish] = nutritionOfDish(component.dish); return a }, acc), {} as Record<Dish["id"], Nutrition>) // TODO: maybe pass these in already calculated?
 	
 	// TERMIABLES
 	
@@ -78,8 +78,8 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 	
 	// Snippets
 	
-	const totalCalories = SUM(meals, meal => SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritonByDish[component.dish].calories)))
-	const totalProtein = SUM(meals, meal => SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritonByDish[component.dish].protein)))
+	const totalCalories = SUM(meals, meal => SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories)))
+	const totalProtein = SUM(meals, meal => SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].protein)))
 	
 	// OBJECTIVE
 	
@@ -103,9 +103,9 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 		for (const component of Object.values(meal.components)) { // for each dish
 			const eq = component.restriction == "exactly" ? "=" : component.restriction == "no_less_than" ? ">" : "<"
 			if (component.restriction) { restrictServingsForDishesThatAreExplicitlyRestricted[`restrictServingsForDishesThatAreExplicitlyRestricted_${meal}_${component.dish}`] =
-				component.percent === true ?        EQ(TERM(servings(meal.id, component.dish), nutritonByDish[component.dish].calories), eq, SUM(Object.values(meal.components), c => TERM(servings(meal.id, c.dish), nutritionOfDish(c.dish).calories)).times(component.amount)) // if there is a percentage restriction
-				: component.percent === false ?     EQ(TERM(servings(meal.id, component.dish)), eq, CONST(component.amount / nutritionOfDish(component.dish).calories)) // if there is a calorie restriction
-				: /*(component.percent === null)*/  EQ(TERM(servings(meal.id, component.dish)), eq, CONST(component.amount))  // if there is a serving restriction
+				component.percent === true ?        EQ(TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories), eq, SUM(Object.values(meal.components), c => TERM(servings(meal.id, c.dish), nutritionByDish[c.dish].calories)).times(component.amount)) // if there is a percentage restriction
+				: component.percent === false ?     EQ(TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories), eq, CONST(component.amount)) // if there is a calorie restriction
+				: /*(component.percent === null)*/  EQ(TERM(servings(meal.id, component.dish)), eq, CONST(component.amount)) // if there is a serving restriction
 		}}
 	}
 	
@@ -114,8 +114,8 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 	for (const meal of meals) { // for each meal
 		const eq = meal.restriction == "exactly" ? "=" : meal.restriction == "no_less_than" ? ">" : "<"
 		if (meal.restriction) { restrictServingsForMealsThatAreExplicitlyRestricted[`restrictServingsForMealsThatAreExplicitlyRestricted_${meal}`] = meal.percent
-			? EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritonByDish[component.dish].calories)), eq, SUM(meals, m => SUM(Object.values(m.components), c => TERM(servings(m.id, c.dish), nutritionOfDish(c.dish).calories))).times(meal.amount)) // if there is a percentage restriction
-			: EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritonByDish[component.dish].calories)), eq, CONST(meal.amount)) // if there is a calorie restriction
+			? EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories)), eq, SUM(meals, m => SUM(Object.values(m.components), c => TERM(servings(m.id, c.dish), nutritionByDish[c.dish].calories))).times(meal.amount)) // if there is a percentage restriction
+			: EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories)), eq, CONST(meal.amount)) // if there is a calorie restriction
 	}}
 	
 	// Model
