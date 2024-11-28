@@ -49,13 +49,11 @@ function makeModels(household: Household): Record<ISODateString, Record<Person["
 		protein: 1, // TODO: add to model & database
 	}), new Map())
 	
-	// per day
 	const days = Map.groupBy(Object.values(household.meals).filter(meal => meal.day), meal => meal.day!)
-	days.forEach((mealsOfDay, day) => {
+	days.forEach((mealsOfDay, day) => { // per day
 		models[day] = {}
 		
-		// per person
-		Object.values(household.people).forEach(person => {
+		Object.values(household.people).forEach(person => { // per person
 			const meals = mealsOfDay.filter(meal => person.visiting ? meal.whitelist.includes(person.id) : !meal.blacklist.includes(person.id)) // get the meals they're a part of
 			if (0 < meals.length) { // if they're a part of any meals this day
 				

@@ -9,6 +9,7 @@
 	import {dishes, foods, type Dish} from "$lib/cache.svelte"
 	import {getContext, onMount} from "svelte"
 	import {type Household} from "$lib/cache.svelte"
+	import {nutritionOfDish} from "$lib/nutrition"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
 	
@@ -102,10 +103,15 @@
 	<div class="flex gap-4 p-4 grow overflow-y-scroll">
 		<!-- TODO: make a search bar -->
 		{#each Object.values(dishes) as dish (dish.id)}
+			{@const nutrition = nutritionOfDish(dish.id)}
 			<button onclick={() => { selected = dish }} class="card {dish.manager == data.session?.user.id ? "bg-base-300" : "bg-base-200"} text-base-content w-64 shadow-xl h-min">
 				<div class="card-body">
 					<div class="card-title">
 						<h2 class="card-title">{dish.name}</h2>
+					</div>
+					<div>
+						<div class="flex"><div class="grow text-right">calories:</div><div class="w-16 text-right">{nutrition.calories.toFixed(2)}</div><div class="w-16 pl-1 opacity-60 text-left">kcal</div></div>
+						<div class="flex"><div class="grow text-right">protein:</div><div class="w-16 text-right">{nutrition.protein.toFixed(2)}</div><div class="w-16 pl-1 opacity-60 text-left">g</div></div>
 					</div>
 				</div>
 			</button>
