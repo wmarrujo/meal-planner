@@ -2,7 +2,6 @@ import {supabase} from "$lib/supabase"
 import type {Enums} from "$schema"
 import {DateTime} from "luxon"
 import {toast} from "svelte-sonner"
-import {SvelteMap, SvelteSet} from "svelte/reactivity"
 
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES
@@ -103,7 +102,7 @@ export const foods: Record<number, Food> = $state({})
 
 async function initialize() {
 	// load all the household data
-
+	
 	// Households
 	const {data: householdsData, error: householdsError} = await supabase
 		.from("households")
@@ -115,7 +114,7 @@ async function initialize() {
 		people: {},
 		meals: {},
 	})
-
+	
 	// People
 	const {data: peopleData, error: peopleError} = await supabase
 		.from("people")
@@ -123,7 +122,7 @@ async function initialize() {
 		.order("name")
 	if (peopleError) { console.error("Error in getting people:", peopleError); toast.error("Error in getting people.") }
 	else peopleData.forEach(person => households[person.household].people[person.id] = person)
-
+	
 	// Meals
 	const {data: mealsData, error: mealsError} = await supabase
 		.from("meals")
@@ -136,7 +135,7 @@ async function initialize() {
 		whitelist: [], // TODO: add to database
 		blacklist: [], // TODO: add to database
 	})
-
+	
 	// Components
 	const {data: componentsData, error: componentsError} = await supabase
 		.from("components")
@@ -146,9 +145,9 @@ async function initialize() {
 		...component,
 		meal: component.meal.id,
 	})
-
+	
 	// preload the household data with all the components it needs to make calculations
-
+	
 	// Dishes
 	const {data: dishesData, error: dishesError} = await supabase
 		.from("dishes")
@@ -159,7 +158,7 @@ async function initialize() {
 		...dish,
 		ingredients: {},
 	})
-
+	
 	// Ingredients
 	const {data: ingredientsData, error: ingredientsError} = await supabase
 		.from("ingredients")
@@ -167,7 +166,7 @@ async function initialize() {
 		.in("dish", Object.keys(dishes))
 	if (ingredientsError) { console.error("Error in getting ingredients:", ingredientsError); toast.error("Error in getting dish ingredients.") }
 	else ingredientsData.forEach(ingredient => dishes[ingredient.dish].ingredients[ingredient.food] = ingredient)
-
+	
 	// Foods
 	const {data: foodsData, error: foodsError} = await supabase
 		.from("foods")
@@ -178,7 +177,7 @@ async function initialize() {
 		...food,
 		servings: {},
 	})
-
+	
 	// Servings
 	const {data: servingsData, error: servingsError} = await supabase
 		.from("servings")
