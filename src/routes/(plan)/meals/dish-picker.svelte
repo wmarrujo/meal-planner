@@ -31,7 +31,7 @@
 	const search = debounce(async (search: string) => {
 		const {data, error} = await supabase
 			.rpc("search_dishes_by_name", {search, page_index: 0, page_size: 50})
-			.select("id, name") // type Option
+			.select("id, name")
 		if (error) { console.error("Error in searching dishes by name:", error); return }
 		options = data
 	}, 200)

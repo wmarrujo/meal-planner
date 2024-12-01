@@ -1,4 +1,6 @@
 export const prerender = true // needed in this file for adapter-static to generate correctly
+export const ssr = false // tell it that I'll never use server-side rendering (since I don't have a server)
+
 import {supabase} from "$lib/supabase"
 
 ////////////////////////////////////////////////////////////////////////////////
