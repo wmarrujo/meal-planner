@@ -111,7 +111,7 @@
 			.from("people")
 			.delete()
 			.eq("id", person)
-		if (error) { console.error("Error in removing person:", error); toast.error("Error in removing goal."); return }
+		if (error) { console.error("Error in removing person:", error); toast.error("Error in removing person."); return }
 		delete home!.people[person]
 	}
 </script>
@@ -206,8 +206,8 @@
 			{#each Object.values(home!.people) as person (person.id)}
 				<td>
 					<div class="flex flex-col">
-						<div class="flex flex-nowrap"><div class="grow">calories:</div><div class="text-right">{targetCalories(person.age, person.sex, person.height, person.weight, person.goal, person.activity).toFixed(0)}</div><div class="opacity-60 w-7 pl-1">kcal</div></div>
-						<div class="flex flex-nowrap"><div class="grow">protein:</div><div class="text-right">{targetProtein(person.weight, person.activity).toFixed(0)}</div><div class="opacity-60 w-7 pl-1">g</div></div>
+						<div class="flex flex-nowrap"><div class="grow">calories:</div><div class="text-right">{Math.round(targetCalories(person.age, person.sex, person.height, person.weight, person.goal, person.activity))}</div><div class="opacity-60 w-7 pl-1">kcal</div></div>
+						<div class="flex flex-nowrap"><div class="grow">protein:</div><div class="text-right">{Math.round(targetProtein(person.weight, person.activity))}</div><div class="opacity-60 w-7 pl-1">g</div></div>
 					</div>
 				</td>
 			{/each}

@@ -10,7 +10,11 @@ import {type Nutrition, targetCalories, targetProtein, nutritionOfDish} from "$l
 export function calculateHousehold(household: Household): Record<Person["id"], Record<Meal["id"], Record<Dish["id"], number>>> {
 	const models = makeModels(household)
 	const solution: Record<Person["id"], Record<Meal["id"], Record<Dish["id"], number>>> = {}
-	Object.entries(models).forEach(([day, dayModels]) => Object.entries(dayModels).forEach(([person, model]) => solution[Number(person)] = solveModel(model, day, Number(person))))
+	for (const [day, dayModels] of Object.entries(models)) {
+		for (const [person, model] of Object.entries(dayModels)) {
+			solution[Number(person)] = solveModel(model, day, Number(person))
+		}
+	}
 	return solution
 }
 

@@ -9,7 +9,7 @@
 	import * as y from "yup"
 	import {superForm, defaults} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
-	import {households, type Household} from "$lib/cache.svelte.js"
+	import {households, type Household} from "$lib/cache.svelte"
 	import {SvelteMap} from "svelte/reactivity"
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -20,7 +20,7 @@
 	
 	$effect(() => { if (0 < Object.keys(households).length) { // on page load (and after we know about some households) load home from the cache, or pick a random one if it's a new browser // NOTE: this must go before the effect below
 		const saved = localStorage.getItem("home")
-		home = saved ? households[Number(saved)] : Object.values(households)[0]
+		home = saved && !isNaN(Number(saved)) ? households[Number(saved)] : Object.values(households)[0]
 	}})
 	$effect(() => { if (home) localStorage.setItem("home", String(home.id)) }) // put it in local storage to make sure the value is persisted across reloads
 	setContext("home", {get value() { return home }}) // make the current hosuehold available on all the pages
@@ -88,7 +88,7 @@
 			<div class="dropdown dropdown-end">
 				<div tabindex="0" role="button" class="btn m-1">{home.name}</div>
 				<ul class="dropdown-content menu bg-base-200 rounded-box z-[1] p-1 shadow">
-					{#if home.head == data.session?.user.id}
+					{#if home.head === data.session?.user.id}
 						<button class="btn flex-nowrap" onclick={() => { edit = home; $householdFormData = {name: home!.name} }}><Pencil class="h-5" />Edit</button>
 					{/if}
 					{#each Object.values(households).filter(household => household.id != home?.id) as household (household.id)}

@@ -64,7 +64,7 @@
 			<h2 class="text-2xl border-b border-base-300 w-full mb-2 px-2">Groceries</h2>
 			<div class="flex flex-col">
 				{#each Object.entries(groceries).sort(([_a, a], [_b, b]) => b - a) as [food, amount] (food)}
-					<div class="flex gap-2"><div class="w-16 text-right">{amount.toFixed(2)}</div><div class="w-5">{foods[Number(food)].by_volume ? "ml" : "g"}</div><div>{foods[Number(food)].name}</div></div>
+					<div class="flex gap-2"><div class="w-16 text-right">{amount.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div class="w-5">{foods[Number(food)].by_volume ? "ml" : "g"}</div><div>{foods[Number(food)].name}</div></div>
 				{/each}
 			</div>
 		</div>

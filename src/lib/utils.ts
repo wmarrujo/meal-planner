@@ -15,6 +15,8 @@ export type PartialNullBy<T, E extends keyof T> = {[K in keyof T]: K extends E ?
 ////////////////////////////////////////////////////////////////////////////////
 
 export function formatDate(date: DateTime): string {
+	if (!date.isValid) throw new Error("Invalid Date")
+	
 	const now = DateTime.now().startOf("day")
 	const monthStartIfNeeded = date.equals(date.startOf("month")) ? ", " + date.toLocaleString({month: "short", day: "numeric"}) : ""
 	

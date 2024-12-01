@@ -8,7 +8,7 @@
 	import {toast} from "svelte-sonner"
 	import {dishes, foods, type Dish} from "$lib/cache.svelte"
 	import {getContext, onMount} from "svelte"
-	import {type Household} from "$lib/cache.svelte"
+	import {type Household, addFoodToCache} from "$lib/cache.svelte"
 	import {nutritionOfDish} from "$lib/nutrition"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
@@ -41,38 +41,25 @@
 	
 	////////////////////////////////////////////////////////////////////////////////
 	
-	const newIngredientSchema = y.object({
-		food: y.number().required(),
-	})
+	// ADD
 	
-	const newIngredientForm = superForm(defaults(yup(newIngredientSchema)), {SPA: true, validators: yup(newIngredientSchema),
-			async onUpdate({form}) {
-				if (!form.valid || !selected) return
-				
-				const {data, error} = await supabase
-					.from("ingredients")
-					.insert({
-						dish: selected.id,
-						food: form.data.food,
-						serving: null,
-						amount: 0,
-					})
-					.select("food:foods!inner(id, name, by_volume), serving:servings(id, amount_of_unit, unit, modifier), amount")
-					.single()
-				if (error) { console.error("Error in inserting ingredient:", error); setError(form, "Error in inserting ingredient."); toast.error("Failed to insert ingredient.") }
-				// else selected.ingredients!.push(data) // FIXME: will push the wrong type
-			},
-		}), {form: newIngredientFormData} = newIngredientForm
-	
-	async function removeIngredient(dish: number, food: number) {
-		const {error} = await supabase
+	async function addIngredient(dish: number, food: number) {
+		const {data, error} = await supabase
 			.from("ingredients")
-			.delete()
-			.eq("dish", dish)
-			.eq("food", food)
-		if (error) { console.error("Error deleting data:", error); toast.error("Failed to remove ingredient."); return }
-		delete dishes[dish].ingredients[food]
+			.insert({
+				dish,
+				food,
+				serving: null,
+				amount: 0,
+			})
+			.select("dish, food, serving, amount")
+			.single()
+		if (error) { console.error("Error in inserting ingredient:", error); toast.error("Failed to insert ingredient."); return }
+		await addFoodToCache(food) // make sure that the food data is pulled in to the caches
+		dishes[dish].ingredients[food] = data
 	}
+	
+	// EDIT
 	
 	async function setIngredientAmount(dish: number, food: number, amount: number) {
 		const {error} = await supabase
@@ -94,6 +81,18 @@
 		dishes[dish].ingredients[food].serving = serving
 	}
 	
+	// REMOVE
+	
+	async function removeIngredient(dish: number, food: number) {
+		const {error} = await supabase
+			.from("ingredients")
+			.delete()
+			.eq("dish", dish)
+			.eq("food", food)
+		if (error) { console.error("Error deleting data:", error); toast.error("Failed to remove ingredient."); return }
+		delete dishes[dish].ingredients[food]
+	}
+	
 	////////////////////////////////////////////////////////////////////////////////
 	
 	let selected: Dish | undefined = $state(undefined) // the dish that is currently selected. undefined will show the "add dish" ui
@@ -110,8 +109,8 @@
 						<h2 class="card-title">{dish.name}</h2>
 					</div>
 					<div>
-						<div class="flex"><div class="grow text-right">calories:</div><div class="w-16 text-right">{nutrition.calories.toFixed(2)}</div><div class="w-16 pl-1 opacity-60 text-left">kcal</div></div>
-						<div class="flex"><div class="grow text-right">protein:</div><div class="w-16 text-right">{nutrition.protein.toFixed(2)}</div><div class="w-16 pl-1 opacity-60 text-left">g</div></div>
+						<div class="flex"><div class="grow text-right">calories:</div><div class="w-16 text-right">{nutrition.calories.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div class="w-16 pl-1 opacity-60 text-left">kcal</div></div>
+						<div class="flex"><div class="grow text-right">protein:</div><div class="w-16 text-right">{nutrition.protein.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div class="w-16 pl-1 opacity-60 text-left">g</div></div>
 					</div>
 				</div>
 			</button>
@@ -156,7 +155,7 @@
 											{#if selected.manager == data.session?.user.id}
 												<div role="button" tabindex={0} class="btn btn-ghost outline-none flex flex-nowrap">
 													<span>{serving ? serving.unit : (food.by_volume ? "ml" : "g")}</span>
-													{#if serving?.modifier}<span class="opacity-50">ingredient.serving?.modifier</span>{/if}
+													{#if serving?.modifier}<span class="opacity-50">{serving?.modifier}</span>{/if}
 												</div>
 												<ul class="dropdown-content menu bg-base-300 z-10 w-full rounded-b-lg p-0">
 													<li><button onclick={() => setIngredientServing(selected!.id, food.id, null)}>{food.by_volume ? "ml" : "g"}</button></li>
@@ -177,19 +176,15 @@
 								{/if}
 							</tr>
 						{/each}
-						{#if selected.manager == data.session?.user.id}
+						{#if selected && selected.manager == data.session?.user.id}
 							<tr>
 								<td colspan={3}>
-									<div class="flex gap-2">
-										<FoodPicker bind:value={$newIngredientFormData.food} name="food" form="new-ingredient-form" class="grow" />
-										<button type="submit" class="btn btn-square" form="new-ingredient-form"><Plus /></button>
-									</div>
+									<FoodPicker onselect={food => addIngredient(selected!.id, food)} />
 								</td>
 							</tr>
 						{/if}
 					</tbody>
 				</table>
-				<form id="new-ingredient-form" use:newIngredientForm.enhance></form>
 			{:else}
 				<div class="flex flex-col gap-2">
 					<div class="skeleton w-full h-8"></div>

@@ -40,7 +40,7 @@
 	<main class="flex h-[calc(100vh-4rem)] relative overflow-scroll scroll">
 		<div class="flex flex-col">
 			{#each [...days].sort().map(d => DateTime.fromISO(d)) as day (day)}
-				{#if DateTime.now() < day && !schedule[day.minus({days: 1}).toISODate()!]}
+				{#if DateTime.now().toMillis() < day.toMillis() && !schedule[day.minus({days: 1}).toISODate()!]}
 					<div class="flex border-t border-base-content">
 						<div class="min-w-14 border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
 							<EllipsisVertical class="my-3" />
@@ -51,7 +51,7 @@
 					<div class="flex border-r border-base-content p-2 min-w-14 justify-center items-center sticky left-0 bg-base-100">
 						<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(day)}</span>
 					</div>
-					{#each Object.values(home.meals).filter(meal => meal.date.startOf("day").equals(day)).sort((a, b) => a.date.diff(b.date, "minutes").as("minutes")) as meal (meal.id)}
+					{#each Object.values(home.meals).filter(meal => meal.date?.startOf("day")?.equals(day)).sort((a, b) => a.date!.diff(b.date!, "minutes").as("minutes")) as meal (meal.id)}
 						{@const people = Object.values(home.people).filter(person => person.visiting ? meal.whitelist.includes(person.id) : !meal.blacklist.includes(person.id))}
 						<div class="p-2 border-r border-base-content border-dotted group">
 							<h2 class="mb-5 text-2xl">{meal.name}</h2>
@@ -70,7 +70,7 @@
 										<tr>
 											<td>{dish.name}</td>
 											{#each people as person (person.id)}
-												<td class="text-lg">{schedule[day.toISODate()!]?.[meal.id]?.[dish.id]?.[person.id]?.toFixed(2) ?? 0}</td>
+												<td class="text-lg">{schedule[day.toISODate()!]?.[meal.id]?.[dish.id]?.[person.id]?.toLocaleString(undefined, {maximumFractionDigits: 2}) ?? 0}</td>
 											{/each}
 										</tr>
 									{/each}
@@ -79,7 +79,7 @@
 						</div>
 					{/each}
 				</div>
-				{#if day < DateTime.now() && !schedule[day.plus({days: 1}).toISODate()!]}
+				{#if day.toMillis() < DateTime.now().toMillis() && !schedule[day.plus({days: 1}).toISODate()!]}
 					<div class="flex border-t border-base-content">
 						<div class="min-w-14 border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
 							<EllipsisVertical class="my-3" />

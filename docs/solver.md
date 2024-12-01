@@ -14,7 +14,7 @@ $M$ = set of meals in the day
 
 $D_m$ = set of dishes (components) in meal $m$
 
-$N^n_d$ = the nutrient
+$N^n_d$ = the amount of nutrient $n$ per serving of dish $d$
 
 $R^c_m$ = the calorie restriction of meal $m$ (not defined for all meals)
 
@@ -34,13 +34,27 @@ $s_{md}$ = the number of servings of dish $d$ in meal $m$
 
 ## Objective
 
-**Minimize**
-
 ```math
-\sum_{n \in N}\left(\blacklozenge_n \cdot e_n\right)
+\text{minimize:} \sum_{n \in N}\left(\blacklozenge_n \cdot e_n\right)
 ```
 
+This objective
+- Minimizes the weighted sum of nutritional deviations
+- Allows prioritization of critical nutrients through weights
+- Handles both over and under-consumption equally
+
 ## Constraints
+
+### Summary
+
+| Category | Description | Applicability | Example |
+|----------|-------------|---------------|---------|
+| Error Definition | Absolute deviation from target | All nutrients |  |
+| Sanity Checks | Non-negative servings | All dishes | Servings ≥ 0 |
+| Meal Restrictions | Calorie/percentage limits | If defined | Breakfast ≤ 500 kcal |
+| Dish Restrictions | Serving/calorie limits | If defined | Max 2 servings |
+
+All constraints must be satisfied simultaneously in the final solution.
 
 ### Define error variables as an absolute value
 
@@ -54,7 +68,7 @@ e_n \geq -\frac{\sum_{m \in M}\left(\sum_{d \in D_m}\left(N^n_d \cdot s_{md}\rig
 
 Define the error ($e = |\frac{a - t}{t}|$) as the absolute value of the percentage error from the target nutrition amount.
 
-NOTE: this works because the objective function is trying to minimize this value
+NOTE: this works because the objective function is trying to minimize $e_n$
 
 ### Sanity Checks
 
@@ -64,12 +78,11 @@ NOTE: this works because the objective function is trying to minimize this value
 
 No negative servings.
 
-
 ### Restrict servings for meals that are explicitly restricted
 
 NOTE: only defined for restrictions that exist
 
-NOTE: for the restrictions, replace the $=$ with $\geq$ if the restriction says to have "no less than" or $\leq$ for "no more than"
+NOTE: for the restrictions, replace the $=$ with $\geq$ if the restriction says to have "no less than" the restricted amount or $\leq$ for "no more than" the restricted amount
 
 #### if the restriction is for the calories of the meal in the day
 
@@ -83,12 +96,11 @@ NOTE: for the restrictions, replace the $=$ with $\geq$ if the restriction says 
 \sum_{}\left(N^c_d \cdot s_{md}\right) = R^{c\%}_m \cdot \sum_{x \in M}\left(\sum_{y \in D_m}\left(N^c_y \cdot s_{xy}\right)\right) \qquad \forall m \in M
 ```
 
-
 ### Restrict servings for dishes that are explicitly restricted
 
 NOTE: only defined for restrictions that exist
 
-NOTE: for the restrictions, replace the $=$ with $\geq$ if the restriction says to have "no less than" or $\leq$ for "no more than"
+NOTE: for the restrictions, replace the $=$ with $\geq$ if the restriction says to have "no less than" the restricted amount or $\leq$ for "no more than" the restricted amount
 
 #### if the restriction is for the number of servings of the dish
 

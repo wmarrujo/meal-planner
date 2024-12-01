@@ -1,6 +1,6 @@
 <script lang="ts">
 	import {createCombobox} from "svelte-headlessui"
-	import {ChevronsUpDown} from "lucide-svelte"
+	import {Plus} from "lucide-svelte"
 	import {debounce} from "ts-debounce"
 	import {supabase} from "$lib/supabase"
 	
@@ -14,12 +14,14 @@
 		name,
 		form,
 		class: customClasses = "",
+		onselect = () => {},
 	}: {
 		selected?: Option
 		value?: number
 		name?: string
 		form?: string
 		class?: string
+		onselect?: (food: number) => void
 	} = $props()
 	
 	let options: Array<Option> = $state([])
@@ -29,7 +31,7 @@
 	const search = debounce(async (search: string) => {
 		const {data, error} = await supabase
 			.rpc("search_generic_foods_by_name", {search, page_index: 0, page_size: 50})
-			.select("id, name") // type Option
+			.select("id, name")
 		if (error) { console.error("Error in searching foods by name:", error); return }
 		options = data
 	}, 200)
@@ -54,7 +56,7 @@
 			autocomplete="off"
 			class="grow"
 		/>
-		<button use:combobox.button><ChevronsUpDown /></button>
+		<button use:combobox.button><Plus /></button>
 	</label>
 	
 	<div class="absolute mt-1 max-h-40 overflow-scroll w-full p-2 bg-base-300 text-base-content rounded-b-lg {!$combobox.expanded && "hidden"}">
@@ -62,9 +64,9 @@
 		<!-- TODO: put in some buttons to say how we're searching. like for the name, or the brand, or any, etc. -->
 		<ul use:combobox.items>
 			{#each options as option, index (index)}
-				<li use:combobox.item={{value: option}} class="p-2 hover:bg-primary hover:text-primary-content cursor-pointer rounded-md">
+			<button use:combobox.item={{value: option}} onclick={() => onselect(option.id)} class="p-2 w-full text-left hover:bg-primary hover:text-primary-content cursor-pointer rounded-md">
 					{option.name}
-				</li>
+				</button>
 				<!-- TODO: add pagination -->
 			{:else}
 				<li class="p-2">

@@ -62,7 +62,7 @@
 			<h2 class="text-2xl border-b border-base-300 w-full mb-2 px-2">Dishes</h2>
 			<div class="flex flex-col">
 				{#each Object.entries(servings) as [dish, amount] (dish)}
-					<div class="flex gap-2"><div class="w-16 text-right">{amount.toFixed(2)}</div><div>{dishes[Number(dish)].name}</div></div>
+					<div class="flex gap-2"><div class="w-16 text-right">{amount.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div>{dishes[Number(dish)].name}</div></div>
 				{/each}
 			</div>
 		</div>
