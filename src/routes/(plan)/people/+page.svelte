@@ -32,6 +32,7 @@
 				activity: Math.floor(Math.random() * 5),
 				goal: Math.floor(Math.random() * 5 - 2),
 				household: home!.id,
+				visiting: false,
 			})
 			.select("id, household, name, age, sex, height, weight, activity, goal, visiting")
 			.single()
@@ -116,11 +117,12 @@
 	}
 </script>
 
+{#if home}
 <table class="table table-fixed table-pin-rows table-pin-cols w-fit [&>*>tr>td]:border-x [&>*>tr>td]:border-base-200  [&>tbody>tr]:border-y-0">
 	<thead>
 		<tr>
 			<th class="w-24 text-right text-base">Name</th>
-			{#each Object.values(home!.people) as person (person.id)}
+			{#each Object.values(home.people) as person (person.id)}
 				<td class="w-40 group">
 					<div class="flex items-center gap-2">
 						<input type="text" value={person.name} onchange={event => setName(person.id, event.currentTarget.value)} placeholder="Name" class="w-full input p-0" />
@@ -136,7 +138,7 @@
 	<tbody>
 		<tr>
 			<th class="text-right">Age</th>
-			{#each Object.values(home!.people) as person (person.id)}
+			{#each Object.values(home.people) as person (person.id)}
 				<td>
 					<input type="number" value={person.age} onchange={event => setAge(person.id, Number(event.currentTarget.value))} class="w-2/3 pr-0 text-lg text-right input input-sm">
 					<span class="w-1/3 text-left">yrs</span>
@@ -146,7 +148,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Sex</th>
-			{#each Object.values(home!.people) as person (person.id)}
+			{#each Object.values(home.people) as person (person.id)}
 				<td>
 					<div class="flex items-center">
 						<span class="text-lg pr-1" title="Female">♀</span>
@@ -159,7 +161,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Height</th>
-			{#each Object.values(home!.people) as person (person.id)}
+			{#each Object.values(home.people) as person (person.id)}
 				<td>
 					<input type="number" value={person.height} onchange={event => setHeight(person.id, Number(event.currentTarget.value))} class="w-2/3 pr-0 text-lg text-right input input-sm">
 					<span class="w-1/3 text-left">cm</span>
@@ -169,7 +171,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Weight</th>
-			{#each Object.values(home!.people) as person (person.id)}
+			{#each Object.values(home.people) as person (person.id)}
 				<td>
 					<input type="number" value={person.weight} onchange={event => setWeight(person.id, Number(event.currentTarget.value))} class="w-2/3 pr-0 text-lg text-right input input-sm">
 					<span class="w-1/3 text-left">kg</span>
@@ -179,7 +181,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Activity</th>
-			{#each Object.values(home!.people) as person (person.id)}
+			{#each Object.values(home.people) as person (person.id)}
 				<td>
 					<input type="range" value={person.activity} min={0} max={4} step={1} onchange={event => setActivity(person.id, Number(event.currentTarget.value))} class="range">
 					<div class="flex justify-between w-full px-2 text-xs">
@@ -191,7 +193,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Goal</th>
-			{#each Object.values(home!.people) as person (person.id)}
+			{#each Object.values(home.people) as person (person.id)}
 				<td>
 					<input type="range" value={person.goal} min={-2} max={2} step={1} onchange={event => setGoal(person.id, Number(event.currentTarget.value))} class="range">
 					<div class="flex justify-between w-full px-2 text-xs">
@@ -203,7 +205,7 @@
 		</tr>
 		<tr>
 			<th class="text-right">Daily Nutrition</th>
-			{#each Object.values(home!.people) as person (person.id)}
+			{#each Object.values(home.people) as person (person.id)}
 				<td>
 					<div class="flex flex-col">
 						<div class="flex flex-nowrap"><div class="grow">calories:</div><div class="text-right">{Math.round(targetCalories(person.age, person.sex, person.height, person.weight, person.goal, person.activity))}</div><div class="opacity-60 w-7 pl-1">kcal</div></div>
@@ -215,6 +217,7 @@
 		</tr>
 	</tbody>
 </table>
+{/if}
 
 <style lang="pcss" scoped>
 	input[type=number] {

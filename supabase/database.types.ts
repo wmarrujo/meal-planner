@@ -305,14 +305,17 @@ export type Database = {
       }
       members: {
         Row: {
+          email: string
           household: number
           user: string
         }
         Insert: {
+          email?: string
           household: number
           user: string
         }
         Update: {
+          email?: string
           household?: number
           user?: string
         }

@@ -98,6 +98,7 @@
 	let selected: Dish | undefined = $state(undefined) // the dish that is currently selected. undefined will show the "add dish" ui
 </script>
 
+{#if home}
 <main class="flex h-[calc(100vh-4rem)]">
 	<div class="flex gap-4 p-4 grow overflow-y-scroll">
 		<!-- TODO: make a search bar -->
@@ -201,3 +202,4 @@
 		{/if}
 	</div>
 </main>
+{/if}

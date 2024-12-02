@@ -174,104 +174,104 @@
 </script>
 
 {#if home}
-	<main class="flex h-[calc(100vh-4rem)] relative overflow-scroll scroll">
-		<div class="flex flex-col">
-			{#each [...days].sort().map(d => DateTime.fromISO(d)) as day (day)}
-				{#if DateTime.now() < day && !days.has(day.minus({days: 1}).toISODate()!) && !days.has(day.minus({days: 2}).toISODate()!) && !days.has(day.minus({days: 3}).toISODate()!)}
-					<div class="flex border-t border-base-content">
-						<div class="min-w-14 border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
-							<EllipsisVertical class="my-3" />
-						</div>
-					</div>
-				{/if}
-				{#if DateTime.now() < day && !days.has(day.minus({days: 1}).toISODate()!) && !days.has(day.minus({days: 2}).toISODate()!)}
-					<div class="flex border-t border-base-content">
-						<div class="min-w-14 border-r border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
-							<button onclick={() => days.add(day.minus({days: 1}).toISODate()!)} class="btn btn-square"><Plus /></button>
-						</div>
-					</div>
-				{/if}
+<main class="flex h-[calc(100vh-4rem)] relative overflow-scroll scroll">
+	<div class="flex flex-col">
+		{#each [...days].sort().map(d => DateTime.fromISO(d)) as day (day)}
+			{#if DateTime.now() < day && !days.has(day.minus({days: 1}).toISODate()!) && !days.has(day.minus({days: 2}).toISODate()!) && !days.has(day.minus({days: 3}).toISODate()!)}
 				<div class="flex border-t border-base-content">
-					<div class="flex border-r border-base-content p-2 min-w-14 justify-center items-center sticky left-0 bg-base-100">
-						<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(day)}</span>
+					<div class="min-w-14 border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
+						<EllipsisVertical class="my-3" />
 					</div>
-					{#each Object.values(home.meals).filter(meal => meal.date?.startOf("day")?.equals(day)).sort((a, b) => a.date!.diff(b.date!, "minutes").as("minutes")) as meal (meal.id)}
-						<div class="p-2 border-r border-base-content border-dotted group">
-							<div class="flex items-center gap-2 mb-5">
-								<input type="text" value={meal.name} onchange={event => setMealName(meal.id, event.currentTarget.value)} class="input text-xl p-1" />
-								<button onclick={() => toggleMealRestriction(meal.id, meal.restriction)} class="btn btn-square btn-sm">
-									{#if meal.restriction == "exactly"}
+				</div>
+			{/if}
+			{#if DateTime.now() < day && !days.has(day.minus({days: 1}).toISODate()!) && !days.has(day.minus({days: 2}).toISODate()!)}
+				<div class="flex border-t border-base-content">
+					<div class="min-w-14 border-r border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
+						<button onclick={() => days.add(day.minus({days: 1}).toISODate()!)} class="btn btn-square"><Plus /></button>
+					</div>
+				</div>
+			{/if}
+			<div class="flex border-t border-base-content">
+				<div class="flex border-r border-base-content p-2 min-w-14 justify-center items-center sticky left-0 bg-base-100">
+					<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(day)}</span>
+				</div>
+				{#each Object.values(home!.meals).filter(meal => meal.date?.startOf("day")?.equals(day)).sort((a, b) => a.date!.diff(b.date!, "minutes").as("minutes")) as meal (meal.id)}
+					<div class="p-2 border-r border-base-content border-dotted group">
+						<div class="flex items-center gap-2 mb-5">
+							<input type="text" value={meal.name} onchange={event => setMealName(meal.id, event.currentTarget.value)} class="input text-xl p-1" />
+							<button onclick={() => toggleMealRestriction(meal.id, meal.restriction)} class="btn btn-square btn-sm">
+								{#if meal.restriction == "exactly"}
+									<Equal />
+								{:else if meal.restriction == "no_less_than"}
+									<ChevronRight />
+								{:else if meal.restriction == "no_more_than"}
+									<ChevronLeft />
+								{:else}
+									<LockOpen />
+								{/if}
+							</button>
+							<input type="number" value={meal.amount} onchange={event => setMealRestrictionAmount(meal.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!meal.restriction && "invisible"}" />
+							<button onclick={() => setMealRestrictionPercent(meal.id, !meal.percent)} class="btn btn-sm w-20 {!meal.restriction && "invisible"}">
+								{#if meal.percent}
+									%
+								{:else}
+									kcal
+								{/if}
+							</button>
+							<button onclick={() => removeMeal(meal.id)} class="btn btn-square btn-sm invisible group-hover:visible hover:bg-error"><Trash2 /></button>
+						</div>
+						<div class="grid grid-cols-[1fr_repeat(4,auto)] group/components gap-2 pl-4">
+							{#each Object.values(meal.components) as component (component.dish)}
+								{@const dish = dishes[component.dish]}
+								<span class="text-lg flex items-center">{dish.name}</span>
+								<button onclick={() => toggleComponentRestriction(meal.id, dish.id, component.restriction)} class="btn btn-square btn-sm">
+									{#if component.restriction == "exactly"}
 										<Equal />
-									{:else if meal.restriction == "no_less_than"}
+									{:else if component.restriction == "no_less_than"}
 										<ChevronRight />
-									{:else if meal.restriction == "no_more_than"}
+									{:else if component.restriction == "no_more_than"}
 										<ChevronLeft />
 									{:else}
 										<LockOpen />
 									{/if}
 								</button>
-								<input type="number" value={meal.amount} onchange={event => setMealRestrictionAmount(meal.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!meal.restriction && "invisible"}" />
-								<button onclick={() => setMealRestrictionPercent(meal.id, !meal.percent)} class="btn btn-sm w-20 {!meal.restriction && "invisible"}">
-									{#if meal.percent}
+								<input type="number" value={component.amount} onchange={event => setComponentRestrictionAmount(meal.id, dish.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!component.restriction && "invisible"}" />
+								<button onclick={() => toggleComponentRestrictionPercent(meal.id, dish.id, component.percent)} class="btn btn-sm w-20 {!component.restriction && "invisible"}">
+									{#if component.percent === null}
+										servings
+									{:else if component.percent}
 										%
 									{:else}
 										kcal
 									{/if}
 								</button>
-								<button onclick={() => removeMeal(meal.id)} class="btn btn-square btn-sm invisible group-hover:visible hover:bg-error"><Trash2 /></button>
-							</div>
-							<div class="grid grid-cols-[1fr_repeat(4,auto)] group/components gap-2 pl-4">
-								{#each Object.values(meal.components) as component (component.dish)}
-									{@const dish = dishes[component.dish]}
-									<span class="text-lg flex items-center">{dish.name}</span>
-									<button onclick={() => toggleComponentRestriction(meal.id, dish.id, component.restriction)} class="btn btn-square btn-sm">
-										{#if component.restriction == "exactly"}
-											<Equal />
-										{:else if component.restriction == "no_less_than"}
-											<ChevronRight />
-										{:else if component.restriction == "no_more_than"}
-											<ChevronLeft />
-										{:else}
-											<LockOpen />
-										{/if}
-									</button>
-									<input type="number" value={component.amount} onchange={event => setComponentRestrictionAmount(meal.id, dish.id, Number(event.currentTarget.value))} class="input w-12 input-sm text-lg px-0 text-center {!component.restriction && "invisible"}" />
-									<button onclick={() => toggleComponentRestrictionPercent(meal.id, dish.id, component.percent)} class="btn btn-sm w-20 {!component.restriction && "invisible"}">
-										{#if component.percent === null}
-											servings
-										{:else if component.percent}
-											%
-										{:else}
-											kcal
-										{/if}
-									</button>
-									<button onclick={() => removeComponent(meal.id, dish.id)} class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><Trash2 /></button>
-								{/each}
-							</div>
-							<DishPicker class="pt-2" onselect={dish => addComponent(meal.id, dish)} />
+								<button onclick={() => removeComponent(meal.id, dish.id)} class="btn btn-square btn-sm invisible group-hover/components:visible hover:bg-error"><Trash2 /></button>
+							{/each}
 						</div>
-					{/each}
-					<div class="p-2 flex items-start gap-2">
-						<button onclick={() => addMeal(day)} class="btn"><Plus /></button>
+						<DishPicker class="pt-2" onselect={dish => addComponent(meal.id, dish)} />
+					</div>
+				{/each}
+				<div class="p-2 flex items-start gap-2">
+					<button onclick={() => addMeal(day)} class="btn"><Plus /></button>
+				</div>
+			</div>
+			{#if !days.has(day.plus({days: 1}).toISODate()!)}
+				<div class="flex border-t border-base-content">
+					<div class="min-w-14 border-r border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
+						<button onclick={() => days.add(day.plus({days: 1}).toISODate()!)} class="btn btn-square"><Plus /></button>
 					</div>
 				</div>
-				{#if !days.has(day.plus({days: 1}).toISODate()!)}
-					<div class="flex border-t border-base-content">
-						<div class="min-w-14 border-r border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
-							<button onclick={() => days.add(day.plus({days: 1}).toISODate()!)} class="btn btn-square"><Plus /></button>
-						</div>
+			{/if}
+			{#if day < DateTime.now() && !days.has(day.plus({days: 1}).toISODate()!) && !days.has(day.plus({days: 2}).toISODate()!) && !days.has(day.plus({days: 3}).toISODate()!)}
+				<div class="flex border-t border-base-content">
+					<div class="min-w-14 border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
+						<EllipsisVertical class="my-3" />
 					</div>
-				{/if}
-				{#if day < DateTime.now() && !days.has(day.plus({days: 1}).toISODate()!) && !days.has(day.plus({days: 2}).toISODate()!) && !days.has(day.plus({days: 3}).toISODate()!)}
-					<div class="flex border-t border-base-content">
-						<div class="min-w-14 border-base-content py-1 flex justify-center sticky left-0 bg-base-100">
-							<EllipsisVertical class="my-3" />
-						</div>
-					</div>
-				{/if}
-			{/each}
-		</div>
-	</main>
+				</div>
+			{/if}
+		{/each}
+	</div>
+</main>
 {/if}
 
 <style lang="pcss" scoped>
