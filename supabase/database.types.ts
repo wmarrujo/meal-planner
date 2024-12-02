@@ -416,6 +416,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_member_id_by_email: {
+        Args: {
+          email: string
+        }
+        Returns: string
+      }
       my_households: {
         Args: Record<PropertyKey, never>
         Returns: number[]
