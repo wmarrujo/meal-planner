@@ -195,7 +195,7 @@
 					<div class="flex border-r border-base-content p-2 min-w-14 justify-center items-center sticky left-0 bg-base-100">
 						<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(day)}</span>
 					</div>
-					{#each Object.values(home!.meals).filter(meal => meal.date?.startOf("day")?.equals(day)).sort((a, b) => a.date!.diff(b.date!, "minutes").as("minutes")) as meal (meal.id)}
+					{#each Object.values(home.meals).filter(meal => meal.date?.startOf("day")?.equals(day)).sort((a, b) => a.date!.diff(b.date!, "minutes").as("minutes")) as meal (meal.id)}
 						<div class="p-2 border-r border-base-content border-dotted group">
 							<div class="flex items-center gap-2 mb-5">
 								<input type="text" value={meal.name} onchange={event => setMealName(meal.id, event.currentTarget.value)} class="input text-xl p-1" />
