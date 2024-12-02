@@ -305,14 +305,17 @@ export type Database = {
       }
       members: {
         Row: {
+          email: string
           household: number
           user: string
         }
         Insert: {
+          email?: string
           household: number
           user: string
         }
         Update: {
+          email?: string
           household?: number
           user?: string
         }
@@ -413,6 +416,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_member_id_by_email: {
+        Args: {
+          email: string
+        }
+        Returns: string
+      }
       my_households: {
         Args: Record<PropertyKey, never>
         Returns: number[]

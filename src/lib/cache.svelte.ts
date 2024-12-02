@@ -8,16 +8,24 @@ import {toast} from "svelte-sonner"
 ////////////////////////////////////////////////////////////////////////////////
 
 export type UUID = string
+export type Email = string
 export type ISODateString = string
 export type ISOTimeString = string
 
 export type Household = {
 	id: number
 	name: string
-	head: UUID
+	head: Member["user"]
+	members: Record<Member["user"], Member>
 	people: Record<Person["id"], Person>
 	meals: Record<Meal["id"], Meal>
 	solution?: Record<Person["id"], Record<Meal["id"], Record<Dish["id"], number>>> // set only when calculated // TODO: make this more reactive, so if anything changes, it recalculates, but only when going to the pages that use the solution
+}
+
+export type Member = {
+	user: UUID
+	email: Email
+	household: Household["id"]
 }
 
 export type Person = {
@@ -111,9 +119,18 @@ async function initialize() {
 	if (householdsError) { console.error("Error in getting households:", householdsError); toast.error("Error in getting households.") }
 	else householdsData.forEach(household => households[household.id] = {
 		...household,
+		members: {},
 		people: {},
 		meals: {},
 	})
+	
+	// Members
+	
+	const {data: membersData, error: membersError} = await supabase
+		.from("members")
+		.select("household, user, email")
+	if (membersError) { console.error("Error in getting members:", membersError); toast.error("Error in getting members.") }
+	else membersData.forEach(member => households[member.household].members[member.user] = member)
 	
 	// People
 	const {data: peopleData, error: peopleError} = await supabase
