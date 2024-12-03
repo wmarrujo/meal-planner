@@ -6,7 +6,8 @@
 	import {DateTime} from "luxon"
 	import {SvelteSet} from "svelte/reactivity"
 	import DishPicker from "./dish-picker.svelte"
-	import {dishes, type Household, type ISODateString} from "$lib/cache.svelte"
+	import TimePicker from "./time-picker.svelte"
+	import {dishes, type Household, type ISODateString, type ISOTimeString} from "$lib/cache.svelte"
 	import {formatDate} from "$lib/utils"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
@@ -52,6 +53,15 @@
 			.eq("id", meal)
 		if (error) { console.error("Error in setting meal name:", error); toast.error("Error in setting meal name."); return }
 		home!.meals[meal].name = name
+	}
+	
+	async function setMealTime(meal: number, time: ISOTimeString) {
+		const {error} = await supabase
+			.from("meals")
+			.update({time})
+			.eq("id", meal)
+		if (error) { console.error("Error in setting meal time:", error); toast.error("Error in setting meal time."); return }
+		home!.meals[meal].time = time
 	}
 	
 	async function toggleMealRestriction(meal: number, existingRestriction: string | null) {
@@ -198,7 +208,8 @@
 					{#each Object.values(home.meals).filter(meal => meal.date?.startOf("day")?.equals(day)).sort((a, b) => a.date!.diff(b.date!, "minutes").as("minutes")) as meal (meal.id)}
 						<div class="p-2 border-r border-base-content border-dotted group">
 							<div class="flex items-center gap-2 mb-5">
-								<input type="text" value={meal.name} onchange={event => setMealName(meal.id, event.currentTarget.value)} class="input text-xl p-1" />
+								<input type="text" value={meal.name} onchange={event => setMealName(meal.id, event.currentTarget.value)} class="input text-xl p-1 grow w-32" />
+								<TimePicker value={meal.time ?? undefined} onchange={time => setMealTime(meal.id, time)} />
 								<button onclick={() => toggleMealRestriction(meal.id, meal.restriction)} class="btn btn-square btn-sm">
 									{#if meal.restriction == "exactly"}
 										<Equal />

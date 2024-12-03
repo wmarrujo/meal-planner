@@ -143,26 +143,7 @@
 				<input type="text" placeholder="Search" class="input input-bordered">
 			</div>
 			<div class="flex gap-4 p-4 flex-wrap overflow-y-scroll">
-				<!--
-				<h2 class="text-2xl">Used in Meal Plan</h2>
-				{#each Object.values(dishes).filter(dish => Object.values(home.meals).flatMap(meal => Object.keys(meal.components).map(Number)).includes(dish.id)) as dish (dish.id)}
-					{@render dishCard(dish)}
-				{/each}
-				<h2 class="text-2xl">Your Dishes</h2>
-				{#each Object.values(dishes).filter(dish => dish.manager == data.session?.user.id) as dish (dish.id)}
-					{@render dishCard(dish)}
-				{/each}
-				<h2 class="text-2xl">Household Members' Dishes</h2>
-				{#each Object.values(dishes).filter(dish => dish.manager != data.session?.user.id && Object.keys(home.members).includes(dish.manager ?? "")) as dish (dish.id)}
-					{@render dishCard(dish)}
-				{/each}
-				<h2 class="text-2xl">Public Dishes</h2>
-				-->
 				{#each Object.values(dishes) as dish (dish.id)}
-					{@render dishCard(dish)}
-				{/each}
-				
-				{#snippet dishCard(dish: Dish)}
 					<button onclick={() => { selected = dish }} class="card bg-base-200 text-base-content w-64 shadow-xl h-min">
 						<div class="card-body">
 							<div class="card-title">
@@ -180,7 +161,7 @@
 							</div>
 						</div>
 					</button>
-				{/snippet}
+				{/each}
 			</div>
 		</div>
 		<div class="relative tablet:w-1/2 laptop:w-1/3 p-4 overflow-y-scroll flex flex-col gap-2 border-l border-base-300">
