@@ -6,7 +6,8 @@
 	import {Plus, X, Trash2, Star, House, CalendarCheck} from "lucide-svelte"
 	import FoodPicker from "./food-picker.svelte"
 	import {toast} from "svelte-sonner"
-	import {dishes, foods, type Dish} from "$lib/cache.svelte"
+	import {dishes, foods} from "$lib/cache.svelte"
+	import type {Dish, Food, Serving} from "$lib/cache.svelte"
 	import {getContext, onMount} from "svelte"
 	import {type Household, addDishesToCache, addFoodToCache, initialized} from "$lib/cache.svelte"
 	import {nutritionOfDish} from "$lib/nutrition"
@@ -67,7 +68,7 @@
 	
 	// REMOVE
 	
-	async function removeDish(dish: number) {
+	async function removeDish(dish: Dish["id"]) {
 		const {error} = await supabase
 			.from("dishes")
 			.delete()
@@ -85,7 +86,7 @@
 	
 	// ADD
 	
-	async function addIngredient(dish: number, food: number) {
+	async function addIngredient(dish: Dish["id"], food: Food["id"]) {
 		const {data, error} = await supabase
 			.from("ingredients")
 			.insert({
@@ -103,7 +104,7 @@
 	
 	// EDIT
 	
-	async function setIngredientAmount(dish: number, food: number, amount: number) {
+	async function setIngredientAmount(dish: Dish["id"], food: Food["id"], amount: Serving["id"]) {
 		const {error} = await supabase
 			.from("ingredients")
 			.update({amount})
@@ -113,7 +114,7 @@
 		dishes[dish].ingredients[food].amount = amount
 	}
 	
-	async function setIngredientServing(dish: number, food: number, serving: number | null) {
+	async function setIngredientServing(dish: Dish["id"], food: Food["id"], serving: Serving["id"] | null) {
 		const {error} = await supabase
 			.from("ingredients")
 			.update({serving})
@@ -125,7 +126,7 @@
 	
 	// REMOVE
 	
-	async function removeIngredient(dish: number, food: number) {
+	async function removeIngredient(dish: Dish["id"], food: Food["id"]) {
 		const {error} = await supabase
 			.from("ingredients")
 			.delete()

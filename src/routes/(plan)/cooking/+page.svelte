@@ -25,7 +25,7 @@
 			for (const meal of meals) {
 				for (const component of Object.values(home.meals[meal].components)) {
 					temp[component.dish] ??= 0
-					temp[component.dish] += Object.keys(home.solution!).reduce((acc, person) => acc + home.solution![Number(person)][meal][component.dish], 0)
+					temp[component.dish] += Object.keys(home.solution!).reduce((acc, person) => acc + (home.solution![Number(person)]?.[meal]?.[component.dish] ?? 0), 0)
 				}
 			}
 		}

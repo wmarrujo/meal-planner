@@ -53,8 +53,7 @@ export type Meal = {
 	percent: boolean // restrict by: true = percent, false = kcal
 	restriction: Enums<"restriction"> | null // how to restrict it, or null = unrestricted
 	components: Record<Dish["id"], Component>
-	blacklist: Array<Person["id"]> // exclude these people from the meal when they otherwise would be (only applies to non-visitors)
-	whitelist: Array<Person["id"]> // include these people in the meal when they otherwise wouldn't be (only applies to visitors)
+	eaters: Array<Person["id"]> // exclude or include these people from the meal when they otherwise would be (do the opposite of person.visiting)
 }
 
 export type Component = {
@@ -151,9 +150,16 @@ async function initialize() {
 		...meal,
 		components: {},
 		date: meal.day ? DateTime.fromISO(meal.time ? `${meal.day!}T${meal.time}` : meal.day!) : undefined,
-		whitelist: [], // TODO: add to database
-		blacklist: [], // TODO: add to database
+		eaters: [],
 	})
+	
+	// Eaters
+	
+	const {data: eatersData, error: eatersError} = await supabase
+		.from("eaters")
+		.select("meal:meals!inner(id, household), eater")
+	if (eatersError) { console.error("Error in getting eaters:", eatersError); toast.error("Error in getting eaters.") }
+	else eatersData.forEach(row => households[row.meal.household].meals[row.meal.id].eaters.push(row.eater))
 	
 	// Components
 	const {data: componentsData, error: componentsError} = await supabase

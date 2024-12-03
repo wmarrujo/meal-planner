@@ -3,7 +3,7 @@
 	import {supabase} from "$lib/supabase"
 	import {getContext, onMount} from "svelte"
 	import {toast} from "svelte-sonner"
-	import {type Household} from "$lib/cache.svelte"
+	import type {Household, Person} from "$lib/cache.svelte"
 	import {targetCalories, targetProtein} from "$lib/nutrition"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
@@ -42,7 +42,7 @@
 	
 	// EDIT
 	
-	async function setName(person: number, name: string) {
+	async function setName(person: Person["id"], name: string) {
 		const {error} = await supabase
 			.from("people")
 			.update({name})
@@ -51,7 +51,7 @@
 		home!.people[person].name = name
 	}
 	
-	async function setAge(person: number, age: number) {
+	async function setAge(person: Person["id"], age: number) {
 		const {error} = await supabase
 			.from("people")
 			.update({age})
@@ -60,7 +60,7 @@
 		home!.people[person].age = age
 	}
 	
-	async function setSex(person: number, sex: number) {
+	async function setSex(person: Person["id"], sex: number) {
 		const {error} = await supabase
 			.from("people")
 			.update({sex})
@@ -69,7 +69,7 @@
 		home!.people[person].sex = sex
 	}
 	
-	async function setHeight(person: number, height: number) {
+	async function setHeight(person: Person["id"], height: number) {
 		const {error} = await supabase
 			.from("people")
 			.update({height})
@@ -78,7 +78,7 @@
 		home!.people[person].height = height
 	}
 	
-	async function setWeight(person: number, weight: number) {
+	async function setWeight(person: Person["id"], weight: number) {
 		const {error} = await supabase
 			.from("people")
 			.update({weight})
@@ -87,7 +87,7 @@
 		home!.people[person].weight = weight
 	}
 	
-	async function setActivity(person: number, activity: number) {
+	async function setActivity(person: Person["id"], activity: number) {
 		const {error} = await supabase
 			.from("people")
 			.update({activity})
@@ -96,7 +96,7 @@
 		home!.people[person].activity = activity
 	}
 	
-	async function setGoal(person: number, goal: number) {
+	async function setGoal(person: Person["id"], goal: number) {
 		const {error} = await supabase
 			.from("people")
 			.update({goal})
@@ -105,9 +105,18 @@
 		home!.people[person].goal = goal
 	}
 	
+	async function toggleVisiting(person: Person["id"]) {
+		const {error} = await supabase
+			.from("people")
+			.update({visiting: !home!.people[person].visiting})
+			.eq("id", person)
+		if (error) { console.error("Error in toggling person visiting:", error); toast.error("Error in toggling visiting."); return }
+		home!.people[person].visiting = !home!.people[person].visiting
+	}
+	
 	// REMOVE
 	
-	async function removePerson(person: number) {
+	async function removePerson(person: Person["id"]) {
 		const {error} = await supabase
 			.from("people")
 			.delete()
@@ -199,6 +208,15 @@
 						<div class="flex justify-between w-full px-2 text-xs">
 							<ChevronsDown /><ChevronDown /><Minus /><ChevronUp /><ChevronsUp />
 						</div>
+					</td>
+				{/each}
+				<td></td>
+			</tr>
+			<tr>
+				<th class="text-right">Status</th>
+				{#each Object.values(home.people) as person (person.id)}
+					<td class="text-center">
+						<button onclick={() => toggleVisiting(person.id)} class="btn btn-sm">{person.visiting ? "Visiting" : "Permanent"}</button>
 					</td>
 				{/each}
 				<td></td>

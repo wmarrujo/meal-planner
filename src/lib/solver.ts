@@ -58,7 +58,7 @@ function makeModels(household: Household): Record<ISODateString, Record<Person["
 		models[day] = {}
 		
 		Object.values(household.people).forEach(person => { // per person
-			const meals = mealsOfDay.filter(meal => person.visiting ? meal.whitelist.includes(person.id) : !meal.blacklist.includes(person.id)) // get the meals they're a part of
+			const meals = mealsOfDay.filter(meal => person.visiting ? meal.eaters.includes(person.id) : !meal.eaters.includes(person.id)) // get the meals they're a part of
 			if (0 < meals.length) { // if they're a part of any meals this day
 				
 				const model = makeModel(meals, targetsByPerson.get(person.id)!, weightsByPerson.get(person.id)!)
@@ -114,9 +114,9 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 			const eq = component.restriction == "exactly" ? "=" : component.restriction == "no_less_than" ? ">" : "<"
 			if (component.restriction) { restrictServingsForDishesThatAreExplicitlyRestricted[`restrictServingsForDishesThatAreExplicitlyRestricted_${meal.id}_${component.dish}`] =
 				component.percent === true ?        EQ(TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories), eq, SUM(Object.values(meal.components), c => TERM(servings(meal.id, c.dish), nutritionByDish[c.dish].calories)).times(component.amount / 100)) // if there is a percentage restriction
-				: component.percent === false ?     EQ(TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories), eq, CONST(component.amount)) // if there is a calorie restriction
-				: /*(component.percent === null)*/  EQ(TERM(servings(meal.id, component.dish)), eq, CONST(component.amount)) // if there is a serving restriction
-		}}
+					: component.percent === false ?     EQ(TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories), eq, CONST(component.amount)) // if there is a calorie restriction
+						: /*(component.percent === null)*/  EQ(TERM(servings(meal.id, component.dish)), eq, CONST(component.amount)) // if there is a serving restriction
+			}}
 	}
 	
 	// restrict servings for meals that are explicitly restricted
@@ -126,7 +126,7 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 		if (meal.restriction) { restrictServingsForMealsThatAreExplicitlyRestricted[`restrictServingsForMealsThatAreExplicitlyRestricted_${meal.id}`] = meal.percent
 			? EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories)), eq, SUM(meals, m => SUM(Object.values(m.components), c => TERM(servings(m.id, c.dish), nutritionByDish[c.dish].calories))).times(meal.amount / 100)) // if there is a percentage restriction
 			: EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories)), eq, CONST(meal.amount)) // if there is a calorie restriction
-	}}
+		}}
 	
 	// Model
 	
@@ -158,7 +158,7 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 
 // transpose helper to rearrange it into the form required by YALPS
 function transpose(expressions: Record<string, Map<Variable, number>>): Record<Variable, Record<string, number>> {
-	let temp: Record<Variable, Record<string, number>> = {}
+	const temp: Record<Variable, Record<string, number>> = {}
 	Object.entries(expressions).forEach(([name, expression]) => {
 		expression.forEach((value, variable) => {
 			temp[variable] ??= {}

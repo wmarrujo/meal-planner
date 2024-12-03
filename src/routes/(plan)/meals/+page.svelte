@@ -2,12 +2,13 @@
 	import {getContext, onMount} from "svelte"
 	import {supabase} from "$lib/supabase"
 	import {toast} from "svelte-sonner"
-	import {Plus, Trash2, LockOpen, Equal, ChevronLeft, ChevronRight, EllipsisVertical} from "lucide-svelte"
+	import {Plus, Minus, Trash2, LockOpen, Equal, ChevronLeft, ChevronRight, EllipsisVertical} from "lucide-svelte"
 	import {DateTime} from "luxon"
 	import {SvelteSet} from "svelte/reactivity"
 	import DishPicker from "./dish-picker.svelte"
 	import TimePicker from "./time-picker.svelte"
-	import {dishes, type Household, type ISODateString, type ISOTimeString} from "$lib/cache.svelte"
+	import {dishes} from "$lib/cache.svelte"
+	import type {Household, Meal, Dish, Person, ISODateString, ISOTimeString} from "$lib/cache.svelte"
 	import {formatDate} from "$lib/utils"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
@@ -41,12 +42,12 @@
 			.select("id, household, name, day, time, amount, percent, restriction")
 			.single()
 		if (error) { console.error("Error in creating new meal:", error); toast.error("Error in creating new meal"); return }
-		home!.meals[data.id] = {...data, date: DateTime.fromISO(data.day!), components: {}, whitelist: [], blacklist: []}
+		home!.meals[data.id] = {...data, date: DateTime.fromISO(data.day!), components: {}, eaters: []}
 	}
 	
 	// EDIT
 	
-	async function setMealName(meal: number, name: string) {
+	async function setMealName(meal: Meal["id"], name: string) {
 		const {error} = await supabase
 			.from("meals")
 			.update({name})
@@ -55,7 +56,7 @@
 		home!.meals[meal].name = name
 	}
 	
-	async function setMealTime(meal: number, time: ISOTimeString) {
+	async function setMealTime(meal: Meal["id"], time: ISOTimeString) {
 		const {error} = await supabase
 			.from("meals")
 			.update({time})
@@ -64,7 +65,7 @@
 		home!.meals[meal].time = time
 	}
 	
-	async function toggleMealRestriction(meal: number, existingRestriction: string | null) {
+	async function toggleMealRestriction(meal: Meal["id"], existingRestriction: string | null) {
 		const newRestriction // ||: unrestricted, =, <=, >= :||
 			= !existingRestriction ? "exactly"
 				: existingRestriction == "exactly" ? "no_more_than"
@@ -79,7 +80,7 @@
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
-	async function setMealRestrictionAmount(meal: number, amount: number) {
+	async function setMealRestrictionAmount(meal: Meal["id"], amount: number) {
 		const {error} = await supabase
 			.from("meals")
 			.update({amount})
@@ -88,7 +89,7 @@
 		home!.meals[meal].amount = amount
 	}
 	
-	async function setMealRestrictionPercent(meal: number, percent: boolean) {
+	async function setMealRestrictionPercent(meal: Meal["id"], percent: boolean) {
 		const {error} = await supabase
 			.from("meals")
 			.update({percent})
@@ -98,9 +99,27 @@
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
+	async function addEater(meal: Meal["id"], eater: Person["id"]) {
+		const {error} = await supabase
+			.from("eaters")
+			.insert({meal, eater})
+		if (error) { console.error("Error in adding eater.", error); toast.error("Error in adding eater.") }
+		home!.meals[meal].eaters.push(eater)
+	}
+	
+	async function removeEater(meal: Meal["id"], eater: Person["id"]) {
+		const {error} = await supabase
+			.from("eaters")
+			.delete()
+			.eq("meal", meal)
+			.eq("eater", eater)
+		if (error) { console.error("Error in removing eater.", error); toast.error("Error in removing eater.") }
+		home!.meals[meal].eaters.splice(home!.meals[meal].eaters.indexOf(eater), 1)
+	}
+	
 	// REMOVE
 	
-	async function removeMeal(meal: number) {
+	async function removeMeal(meal: Meal["id"]) {
 		// TODO: add an "are you sure?" check
 		// TODO: add a soft-delete
 		const {error} = await supabase
@@ -117,7 +136,7 @@
 	
 	// ADD
 	
-	async function addComponent(meal: number, dish: number) {
+	async function addComponent(meal: Meal["id"], dish: Dish["id"]) {
 		const {data, error} = await supabase
 			.from("components")
 			.insert({meal, dish})
@@ -129,7 +148,7 @@
 	
 	// EDIT
 	
-	async function toggleComponentRestriction(meal: number, dish: number, existingRestriction: string | null) {
+	async function toggleComponentRestriction(meal: Meal["id"], dish: Dish["id"], existingRestriction: string | null) {
 		const newRestriction // ||: unrestricted, =, <=, >= :||
 			= !existingRestriction ? "exactly"
 				: existingRestriction == "exactly" ? "no_more_than"
@@ -145,7 +164,7 @@
 		// TODO: eventually, to protect against people spamming this, add some throttling
 	}
 	
-	async function setComponentRestrictionAmount(meal: number, dish: number, amount: number) {
+	async function setComponentRestrictionAmount(meal: Meal["id"], dish: Dish["id"], amount: number) {
 		const {error} = await supabase
 			.from("components")
 			.update({amount})
@@ -155,7 +174,7 @@
 		home!.meals[meal].components[dish].amount = amount
 	}
 	
-	async function toggleComponentRestrictionPercent(meal: number, dish: number, percent: boolean | null) {
+	async function toggleComponentRestrictionPercent(meal: Meal["id"], dish: Dish["id"], percent: boolean | null) {
 		const newPercent // ||: serving, %, kcal :||
 			= percent === null ? true : percent ? false : null
 		const {error} = await supabase
@@ -170,7 +189,7 @@
 	
 	// REMOVE
 	
-	async function removeComponent(meal: number, dish: number) {
+	async function removeComponent(meal: Meal["id"], dish: Dish["id"]) {
 		// TODO: add an "are you sure?" check
 		// TODO: add a soft-delete
 		const {error} = await supabase
@@ -206,8 +225,8 @@
 						<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(day)}</span>
 					</div>
 					{#each Object.values(home.meals).filter(meal => meal.date?.startOf("day")?.equals(day)).sort((a, b) => a.date!.diff(b.date!, "minutes").as("minutes")) as meal (meal.id)}
-						<div class="p-2 border-r border-base-content border-dotted group">
-							<div class="flex items-center gap-2 mb-5">
+						<div class="p-2 border-r border-base-content border-dotted group flex flex-col gap-2">
+							<div class="flex items-center gap-2">
 								<input type="text" value={meal.name} onchange={event => setMealName(meal.id, event.currentTarget.value)} class="input text-xl p-1 grow w-32" />
 								<TimePicker value={meal.time ?? undefined} onchange={time => setMealTime(meal.id, time)} />
 								<button onclick={() => toggleMealRestriction(meal.id, meal.restriction)} class="btn btn-square btn-sm">
@@ -260,6 +279,30 @@
 								{/each}
 							</div>
 							<DishPicker class="pt-2" onselect={dish => addComponent(meal.id, dish)} />
+							<div class="flex">
+								<div class="flex flex-col items-start">
+									{#each meal.eaters as personId (personId)}
+										{@const person = home.people[personId]}
+										<div class="flex items-center w-full group/eater">
+											{#if person.visiting}
+												<Plus />
+											{:else}
+												<Minus />
+											{/if}
+											<div class="grow">{person.name}</div>
+											<button onclick={() => removeEater(meal.id, personId)} class="btn btn-square btn-sm invisible group-hover/eater:visible"><Trash2 /></button>
+										</div>
+									{/each}
+									<div class="dropdown">
+										<div tabindex="0" role="button" class="btn btn-sm m-1">Include or Exclude Person</div>
+										<ul class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+											{#each Object.values(home.people).filter(person => !meal.eaters.includes(person.id)) as person (person.id)}
+												<li><button onclick={() => addEater(meal.id, person.id)} class="btn btn-sm">{person.name}</button></li>
+											{/each}
+										</ul>
+									</div>
+								</div>
+							</div>
 						</div>
 					{/each}
 					<div class="p-2 flex items-start gap-2">
