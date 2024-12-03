@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {supabase} from "$lib/supabase"
 	import * as y from "yup"
-	import {superForm, defaults, setError} from "sveltekit-superforms"
+	import {superForm, defaults} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
 	import {Plus, X, Trash2} from "lucide-svelte"
 	import FoodPicker from "./food-picker.svelte"
@@ -19,7 +19,16 @@
 	
 	onMount(() => { if (home) home.solution = undefined })
 	
+	let selected: Dish | undefined = $state(undefined) // the dish that is currently selected. undefined will show the "add dish" form
+	
+	// TODO: load other relevant dishes
+	// TODO: only show nutrition inside editor
+	
 	////////////////////////////////////////////////////////////////////////////////
+	// DISHES
+	////////////////////////////////////////////////////////////////////////////////
+	
+	// ADD
 	
 	const newDishSchema = y.object({
 		name: y.string().required(),
@@ -28,17 +37,36 @@
 	const newDishForm = superForm(defaults(yup(newDishSchema)), {SPA: true, validators: yup(newDishSchema),
 			async onUpdate({form}) {
 				if (!form.valid) return
-				
-				const {data, error} = await supabase
-					.from("dishes")
-					.insert({name: form.data.name})
-					.select("id, name, manager")
-					.single()
-				if (error) { console.error("Error in inserting dish:", error); setError(form, "Error in inserting dish."); toast.error("Failed to insert dish.") }
-				else dishes[data.id] = {...data, ingredients: {}}
+				addDish(form.data.name)
 			},
 		}), {form: newDishFormData} = newDishForm
 	
+	async function addDish(name: string) {
+		const {data, error} = await supabase
+			.from("dishes")
+			.insert({name})
+			.select("id, name, manager")
+			.single()
+		if (error) { console.error("Error in inserting dish:", error); toast.error("Failed to insert dish."); return }
+		dishes[data.id] = {...data, ingredients: {}}
+	}
+	
+	// REMOVE
+	
+	async function removeDish(dish: number) {
+		const {error} = await supabase
+			.from("dishes")
+			.delete()
+			.eq("id", dish)
+		if (error) { console.error("Error in removing dish.", error); toast.error("Failed to remove dish."); return }
+		delete dishes[dish]
+		// TODO: delete it from other places that use it
+		// TODO: make the button disabled if they won't be able to
+		// TODO: figure out logic of when to delete vs soft-delete
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////
+	// INGREDIENTS
 	////////////////////////////////////////////////////////////////////////////////
 	
 	// ADD
@@ -92,36 +120,55 @@
 		if (error) { console.error("Error deleting data:", error); toast.error("Failed to remove ingredient."); return }
 		delete dishes[dish].ingredients[food]
 	}
-	
-	////////////////////////////////////////////////////////////////////////////////
-	
-	let selected: Dish | undefined = $state(undefined) // the dish that is currently selected. undefined will show the "add dish" ui
 </script>
 
 {#if home}
-	<main class="flex h-[calc(100vh-4rem)]">
-		<div class="flex gap-4 p-4 grow overflow-y-scroll">
-			<!-- TODO: make a search bar -->
-			{#each Object.values(dishes) as dish (dish.id)}
-				{@const nutrition = nutritionOfDish(dish.id)}
-				<button onclick={() => { selected = dish }} class="card {dish.manager == data.session?.user.id ? "bg-base-300" : "bg-base-200"} text-base-content w-64 shadow-xl h-min">
-					<div class="card-body">
-						<div class="card-title">
-							<h2 class="card-title">{dish.name}</h2>
+	<main class="flex max-w-full">
+		<div class="tablet:w-1/2 laptop:w-2/3 flex flex-col">
+			<div class="w-full flex p-4 gap-2">
+				<input type="text" placeholder="Search" class="input input-bordered">
+			</div>
+			<div class="flex gap-4 p-4 flex-wrap overflow-y-scroll">
+				<!--
+				<h2 class="text-2xl">Used in Meal Plan</h2>
+				{#each Object.values(dishes).filter(dish => Object.values(home.meals).flatMap(meal => Object.keys(meal.components).map(Number)).includes(dish.id)) as dish (dish.id)}
+					{@render dishCard(dish)}
+				{/each}
+				<h2 class="text-2xl">Your Dishes</h2>
+				{#each Object.values(dishes).filter(dish => dish.manager == data.session?.user.id) as dish (dish.id)}
+					{@render dishCard(dish)}
+				{/each}
+				<h2 class="text-2xl">Household Members' Dishes</h2>
+				{#each Object.values(dishes).filter(dish => dish.manager != data.session?.user.id && Object.keys(home.members).includes(dish.manager ?? "")) as dish (dish.id)}
+					{@render dishCard(dish)}
+				{/each}
+				<h2 class="text-2xl">Public Dishes</h2>
+				-->
+				{#each Object.values(dishes) as dish (dish.id)}
+					{@render dishCard(dish)}
+				{/each}
+				
+				{#snippet dishCard(dish: Dish)}
+					<button onclick={() => { selected = dish }} class="card {dish.manager == data.session?.user.id ? "bg-base-300" : "bg-base-200"} text-base-content w-64 shadow-xl h-min">
+						<div class="card-body">
+							<div class="card-title">
+								<h2 class="card-title">{dish.name}</h2>
+							</div>
 						</div>
-						<div>
-							<div class="flex"><div class="grow text-right">calories:</div><div class="w-16 text-right">{nutrition.calories.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div class="w-16 pl-1 opacity-60 text-left">kcal</div></div>
-							<div class="flex"><div class="grow text-right">protein:</div><div class="w-16 text-right">{nutrition.protein.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div class="w-16 pl-1 opacity-60 text-left">g</div></div>
-						</div>
-					</div>
-				</button>
-			{/each}
+					</button>
+				{/snippet}
+			</div>
 		</div>
-		<div class="relative tablet:w-1/2 laptop:w-1/3 p-4 overflow-y-scroll flex flex-col">
+		<div class="relative tablet:w-1/2 laptop:w-1/3 p-4 overflow-y-scroll flex flex-col gap-2 border-l border-base-300">
 			{#if selected}
+				{@const nutrition = nutritionOfDish(selected.id)}
 				<div class="flex">
 					<h2 class="text-4xl font-bold grow">{selected.name}</h2>
 					<button onclick={() => selected = undefined} class="btn btn-square btn-sm"><X /></button>
+				</div>
+				<div>
+					<div class="flex"><div class="w-20 text-right">calories:</div><div class="w-16 text-right">{nutrition.calories.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div class="w-16 pl-1 opacity-60 text-left">kcal</div></div>
+					<div class="flex"><div class="w-20 text-right">protein:</div><div class="w-16 text-right">{nutrition.protein.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div class="w-16 pl-1 opacity-60 text-left">g</div></div>
 				</div>
 				
 				<!-- TODO: make a place to toggle the dish public vs private -->
@@ -194,6 +241,10 @@
 						<div class="skeleton w-full h-8"></div>
 					</div>
 				{/if}
+				<div class="flex flex-col items-center gap-2 py-4 mt-4 w-full border-t border-base-300">
+					<h2 class="text-error">Danger Zone:</h2>
+					<button onclick={() => removeDish(selected!.id)} class="btn btn-error"><Trash2 />Delete</button>
+				</div>
 			{:else}
 				<form use:newDishForm.enhance class="flex flex-col gap-2 items-center">
 					<input type="text" name="name" bind:value={$newDishFormData.name} placeholder="Name" class="input input-bordered">

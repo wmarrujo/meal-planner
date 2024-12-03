@@ -205,8 +205,53 @@ async function initialize() {
 }
 
 initialize()
+
+////////////////////////////////////////////////////////////////////////////////
+// FILLERS
+////////////////////////////////////////////////////////////////////////////////
+
+export async function addDishToCache(dish: number) {
+	if (dishes[dish]) return // if we already have the dish in cache, don't go get it
 	
-// TODO: move these to somewhere more sensical
+	// Dishes
+	const {data: dishData, error: dishesError} = await supabase
+		.from("dishes")
+		.select("id, name, manager")
+		.eq("id", dish)
+		.single()
+	if (dishesError) { console.error("Error in getting dishes:", dishesError); toast.error("Error in getting dishes."); return }
+	dishes[dishData.id] = {
+		...dishData,
+		ingredients: {},
+	}
+	
+	// Ingredients
+	const {data: ingredientsData, error: ingredientsError} = await supabase
+		.from("ingredients")
+		.select("dish, food, serving, amount")
+		.eq("dish", dish)
+	if (ingredientsError) { console.error("Error in getting ingredients:", ingredientsError); toast.error("Error in getting dish ingredients."); return }
+	ingredientsData.forEach(ingredient => dishes[ingredient.dish].ingredients[ingredient.food] = ingredient)
+	
+	// Foods
+	const {data: foodsData, error: foodsError} = await supabase
+		.from("foods")
+		.select("id, name, by_volume, calories, protein")
+		.in("id", ingredientsData.map(ingredient => ingredient.food).filter(id => !foods[id])) // get the foods we don't have already
+	if (foodsError) { console.error("Error in getting foods:", foodsError); toast.error("Error in getting foods."); return }
+	foodsData.forEach(food => foods[food.id] = {
+		...food,
+		servings: {},
+	})
+	
+	// Servings
+	const {data: servingsData, error: servingsError} = await supabase
+		.from("servings")
+		.select("food, id, amount, amount_of_unit, unit, modifier")
+		.in("food", foodsData.map(food => food.id))
+	if (servingsError) { console.error("Error populating servings:", servingsError); toast.error("Error in getting foods."); return }
+	servingsData.forEach(serving => foods[serving.food].servings[serving.id] = serving)
+}
 
 export async function addFoodToCache(food: number) {
 	// Foods

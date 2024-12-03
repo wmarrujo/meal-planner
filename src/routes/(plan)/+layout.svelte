@@ -65,7 +65,7 @@
 				email: data.session!.user.email,
 			}},
 			people: {},
-			meals: {}
+			meals: {},
 		} as Household
 		households[householdData.id] = h // update the local data
 		return h
@@ -187,34 +187,30 @@
 					<div class="flex-1 flex flex-col items-center gap-4 p-4">
 						<label for="household-name">Household Name</label>
 						<input id="household-name" type="text" value={edit.name} onchange={event => setHouseholdName(edit!.id, event.currentTarget.value)} placeholder="Name" class="input input-bordered text-center text-xl">
-						{#if data.session?.user.id == edit.head}
-							<div class="flex flex-col items-center border-t border-base-300 mt-4 pt-2 w-full">
-								<h2 class="text-error">Danger Zone:</h2>
-								<button onclick={() => removeHousehold(edit!.id)} class="btn btn-error"><Trash2 />Delete</button>
-								<!-- TODO: transfer ownership -->
-							</div>
-						{/if}
-					</div>
-					{#if data.session?.user.id == edit.head}
-						<div class="flex-1 flex flex-col items-center gap-4 p-4">
-							<div class="flex flex-col gap-2">
-								{#each Object.values(edit.members) as member}
-									<div class="group flex items-center gap-2">
-										{#if member.user == edit.head}
-											<div class="w-8 h-8 flex justify-center items-center"><Star /></div>
-										{:else}
-											<button onclick={() => removeMember(edit!.id, member.user)} class="btn btn-square btn-sm invisible group-hover:visible hover:btn-error"><Trash2 /></button>
-										{/if}
-										<div class="grow">{member.email}</div>
-									</div>
-								{/each}
-							</div>
-							<form use:memberForm.enhance class="flex gap-2">
-								<input name="email" type="text" bind:value={$memberFormData.email} placeholder="E-Mail" class="input input-bordered">
-								<button class="btn btn-square btn-primary"><Plus /></button>
-							</form>
+						<div class="flex flex-col items-center border-t border-base-300 mt-4 pt-2 w-full">
+							<h2 class="text-error">Danger Zone:</h2>
+							<button onclick={() => removeHousehold(edit!.id)} class="btn btn-error"><Trash2 />Delete</button>
+							<!-- TODO: transfer ownership -->
 						</div>
-					{/if}
+					</div>
+					<div class="flex-1 flex flex-col items-center gap-4 p-4">
+						<div class="flex flex-col gap-2">
+							{#each Object.values(edit.members) as member (member.user)}
+								<div class="group flex items-center gap-2">
+									{#if member.user == edit.head}
+										<div class="w-8 h-8 flex justify-center items-center"><Star /></div>
+									{:else}
+										<button onclick={() => removeMember(edit!.id, member.user)} class="btn btn-square btn-sm invisible group-hover:visible hover:btn-error"><Trash2 /></button>
+									{/if}
+									<div class="grow">{member.email}</div>
+								</div>
+							{/each}
+						</div>
+						<form use:memberForm.enhance class="flex gap-2">
+							<input name="email" type="text" bind:value={$memberFormData.email} placeholder="E-Mail" class="input input-bordered">
+							<button class="btn btn-square btn-primary"><Plus /></button>
+						</form>
+					</div>
 				</div>
 			{:else}
 				<form use:addHouseholdForm.enhance class="flex flex-col justify-center items-center p-4 gap-4">
