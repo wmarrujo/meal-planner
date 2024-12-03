@@ -126,7 +126,8 @@ function makeModel(meals: Array<Meal>, targets: Nutrition, weights: Nutrition): 
 		if (meal.restriction) { restrictServingsForMealsThatAreExplicitlyRestricted[`restrictServingsForMealsThatAreExplicitlyRestricted_${meal.id}`] = meal.percent
 			? EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories)), eq, SUM(meals, m => SUM(Object.values(m.components), c => TERM(servings(m.id, c.dish), nutritionByDish[c.dish].calories))).times(meal.amount / 100)) // if there is a percentage restriction
 			: EQ(SUM(Object.values(meal.components), component => TERM(servings(meal.id, component.dish), nutritionByDish[component.dish].calories)), eq, CONST(meal.amount)) // if there is a calorie restriction
-		}}
+		}
+	}
 	
 	// Model
 	

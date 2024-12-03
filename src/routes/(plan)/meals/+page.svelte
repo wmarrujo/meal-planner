@@ -103,7 +103,7 @@
 		const {error} = await supabase
 			.from("eaters")
 			.insert({meal, eater})
-		if (error) { console.error("Error in adding eater.", error); toast.error("Error in adding eater.") }
+		if (error) { console.error("Error in adding eater.", error); toast.error("Error in adding eater."); return }
 		home!.meals[meal].eaters.push(eater)
 	}
 	
@@ -113,7 +113,7 @@
 			.delete()
 			.eq("meal", meal)
 			.eq("eater", eater)
-		if (error) { console.error("Error in removing eater.", error); toast.error("Error in removing eater.") }
+		if (error) { console.error("Error in removing eater.", error); toast.error("Error in removing eater."); return }
 		home!.meals[meal].eaters.splice(home!.meals[meal].eaters.indexOf(eater), 1)
 	}
 	
