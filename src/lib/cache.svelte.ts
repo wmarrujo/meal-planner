@@ -104,6 +104,8 @@ export const households: Record<number, Household> = $state({})
 export const dishes: Record<number, Dish> = $state({})
 export const foods: Record<number, Food> = $state({})
 
+export const initialized: {value: boolean} = $state({value: false}) // FIXME: this is gross, find a better way
+
 ////////////////////////////////////////////////////////////////////////////////
 // INITIALIZATION
 ////////////////////////////////////////////////////////////////////////////////
@@ -202,6 +204,8 @@ async function initialize() {
 		.in("food", Object.keys(foods))
 	if (servingsError) { console.error("Error populating servings:", servingsError); toast.error("Error in getting foods.") }
 	else servingsData.forEach(serving => foods[serving.food].servings[serving.id] = serving)
+	
+	initialized.value = true
 }
 
 initialize()
@@ -210,26 +214,25 @@ initialize()
 // FILLERS
 ////////////////////////////////////////////////////////////////////////////////
 
-export async function addDishToCache(dish: number) {
-	if (dishes[dish]) return // if we already have the dish in cache, don't go get it
+export async function addDishesToCache(dishes_: Array<Dish["id"]>) {
+	const selection = dishes_.filter(dish => !dishes[dish]) // get only the dishes we don't already have
 	
 	// Dishes
-	const {data: dishData, error: dishesError} = await supabase
+	const {data: dishesData, error: dishesError} = await supabase
 		.from("dishes")
 		.select("id, name, manager")
-		.eq("id", dish)
-		.single()
+		.in("id", selection)
 	if (dishesError) { console.error("Error in getting dishes:", dishesError); toast.error("Error in getting dishes."); return }
-	dishes[dishData.id] = {
-		...dishData,
+	dishesData.forEach(dish => dishes[dish.id] = {
+		...dish,
 		ingredients: {},
-	}
+	})
 	
 	// Ingredients
 	const {data: ingredientsData, error: ingredientsError} = await supabase
 		.from("ingredients")
 		.select("dish, food, serving, amount")
-		.eq("dish", dish)
+		.in("dish", dishesData.map(dish => dish.id))
 	if (ingredientsError) { console.error("Error in getting ingredients:", ingredientsError); toast.error("Error in getting dish ingredients."); return }
 	ingredientsData.forEach(ingredient => dishes[ingredient.dish].ingredients[ingredient.food] = ingredient)
 	

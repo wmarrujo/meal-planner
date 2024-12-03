@@ -3,12 +3,12 @@
 	import * as y from "yup"
 	import {superForm, defaults} from "sveltekit-superforms"
 	import {yup} from "sveltekit-superforms/adapters"
-	import {Plus, X, Trash2} from "lucide-svelte"
+	import {Plus, X, Trash2, Star, House, CalendarCheck} from "lucide-svelte"
 	import FoodPicker from "./food-picker.svelte"
 	import {toast} from "svelte-sonner"
 	import {dishes, foods, type Dish} from "$lib/cache.svelte"
 	import {getContext, onMount} from "svelte"
-	import {type Household, addFoodToCache} from "$lib/cache.svelte"
+	import {type Household, addDishesToCache, addFoodToCache, initialized} from "$lib/cache.svelte"
 	import {nutritionOfDish} from "$lib/nutrition"
 	
 	const home = $derived(getContext<{value: Household | undefined}>("home").value) // NOTE: will be defined except right after page load
@@ -21,12 +21,26 @@
 	
 	let selected: Dish | undefined = $state(undefined) // the dish that is currently selected. undefined will show the "add dish" form
 	
-	// TODO: load other relevant dishes
-	// TODO: only show nutrition inside editor
-	
 	////////////////////////////////////////////////////////////////////////////////
 	// DISHES
 	////////////////////////////////////////////////////////////////////////////////
+	
+	// INITIALIZE
+	
+	let preloaded = $state(false)
+	$effect(() => { if (initialized.value && home && !preloaded) preloadSomeDishes() })
+	
+	async function preloadSomeDishes() {
+		if (!home) return
+		preloaded = true
+		const {data, error} = await supabase
+			.from("dishes")
+			.select("id, manager")
+			.in("manager", Object.keys(home.members))
+			.limit(30) // "some"
+		if (error) { console.error("Error in getting some dishes.", error); return }
+		await addDishesToCache(data.map(dish => dish.id))
+	}
 	
 	// ADD
 	
@@ -149,10 +163,20 @@
 				{/each}
 				
 				{#snippet dishCard(dish: Dish)}
-					<button onclick={() => { selected = dish }} class="card {dish.manager == data.session?.user.id ? "bg-base-300" : "bg-base-200"} text-base-content w-64 shadow-xl h-min">
+					<button onclick={() => { selected = dish }} class="card bg-base-200 text-base-content w-64 shadow-xl h-min">
 						<div class="card-body">
 							<div class="card-title">
 								<h2 class="card-title">{dish.name}</h2>
+							</div>
+							<div class="flex">
+								{#if dish.manager == data.session?.user.id}
+									<Star />
+								{:else if Object.keys(home.members).includes(dish.manager ?? "")}
+									<House />
+								{/if}
+								{#if Object.values(home.meals).flatMap(meal => Object.keys(meal.components).map(Number)).includes(dish.id)}
+									<CalendarCheck />
+								{/if}
 							</div>
 						</div>
 					</button>
