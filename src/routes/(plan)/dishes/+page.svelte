@@ -140,9 +140,11 @@
 {#if home}
 	<main class="flex max-w-full">
 		<div class="tablet:w-1/2 laptop:w-2/3 flex flex-col">
+			<!--
 			<div class="w-full flex p-4 gap-2">
 				<input type="text" placeholder="Search" class="input input-bordered">
 			</div>
+			-->
 			<div class="flex gap-4 p-4 flex-wrap overflow-y-scroll">
 				{#each Object.values(dishes) as dish (dish.id)}
 					<button onclick={() => { selected = dish }} class="card bg-base-200 text-base-content w-64 shadow-xl h-min">
