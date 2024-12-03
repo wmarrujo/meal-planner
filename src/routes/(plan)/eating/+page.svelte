@@ -52,7 +52,7 @@
 						<span class="[writing-mode:vertical-rl] [scale:-1] text-lg">{formatDate(day)}</span>
 					</div>
 					{#each Object.values(home.meals).filter(meal => meal.date?.startOf("day")?.equals(day)).sort((a, b) => a.date!.diff(b.date!, "minutes").as("minutes")) as meal (meal.id)}
-						{@const people = Object.values(home.people).filter(person => person.visiting ? meal.whitelist.includes(person.id) : !meal.blacklist.includes(person.id))}
+						{@const people = Object.values(home.people).filter(person => person.visiting ? meal.eaters.includes(person.id) : !meal.eaters.includes(person.id))}
 						<div class="p-2 border-r border-base-content border-dotted group">
 							<h2 class="mb-5 text-2xl">{meal.name}</h2>
 							<table class="table">

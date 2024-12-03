@@ -53,8 +53,7 @@ export type Meal = {
 	percent: boolean // restrict by: true = percent, false = kcal
 	restriction: Enums<"restriction"> | null // how to restrict it, or null = unrestricted
 	components: Record<Dish["id"], Component>
-	blacklist: Array<Person["id"]> // exclude these people from the meal when they otherwise would be (only applies to non-visitors)
-	whitelist: Array<Person["id"]> // include these people in the meal when they otherwise wouldn't be (only applies to visitors)
+	eaters: Array<Person["id"]> // exclude or include these people from the meal when they otherwise would be (do the opposite of person.visiting)
 }
 
 export type Component = {
@@ -104,6 +103,8 @@ export const households: Record<number, Household> = $state({})
 export const dishes: Record<number, Dish> = $state({})
 export const foods: Record<number, Food> = $state({})
 
+export const initialized: {value: boolean} = $state({value: false}) // FIXME: this is gross, find a better way
+
 ////////////////////////////////////////////////////////////////////////////////
 // INITIALIZATION
 ////////////////////////////////////////////////////////////////////////////////
@@ -149,9 +150,16 @@ async function initialize() {
 		...meal,
 		components: {},
 		date: meal.day ? DateTime.fromISO(meal.time ? `${meal.day!}T${meal.time}` : meal.day!) : undefined,
-		whitelist: [], // TODO: add to database
-		blacklist: [], // TODO: add to database
+		eaters: [],
 	})
+	
+	// Eaters
+	
+	const {data: eatersData, error: eatersError} = await supabase
+		.from("eaters")
+		.select("meal:meals!inner(id, household), eater")
+	if (eatersError) { console.error("Error in getting eaters:", eatersError); toast.error("Error in getting eaters.") }
+	else eatersData.forEach(row => households[row.meal.household].meals[row.meal.id].eaters.push(row.eater))
 	
 	// Components
 	const {data: componentsData, error: componentsError} = await supabase
@@ -202,11 +210,57 @@ async function initialize() {
 		.in("food", Object.keys(foods))
 	if (servingsError) { console.error("Error populating servings:", servingsError); toast.error("Error in getting foods.") }
 	else servingsData.forEach(serving => foods[serving.food].servings[serving.id] = serving)
+	
+	initialized.value = true
 }
 
 initialize()
+
+////////////////////////////////////////////////////////////////////////////////
+// FILLERS
+////////////////////////////////////////////////////////////////////////////////
+
+export async function addDishesToCache(dishes_: Array<Dish["id"]>) {
+	const selection = dishes_.filter(dish => !dishes[dish]) // get only the dishes we don't already have
 	
-// TODO: move these to somewhere more sensical
+	// Dishes
+	const {data: dishesData, error: dishesError} = await supabase
+		.from("dishes")
+		.select("id, name, manager")
+		.in("id", selection)
+	if (dishesError) { console.error("Error in getting dishes:", dishesError); toast.error("Error in getting dishes."); return }
+	dishesData.forEach(dish => dishes[dish.id] = {
+		...dish,
+		ingredients: {},
+	})
+	
+	// Ingredients
+	const {data: ingredientsData, error: ingredientsError} = await supabase
+		.from("ingredients")
+		.select("dish, food, serving, amount")
+		.in("dish", dishesData.map(dish => dish.id))
+	if (ingredientsError) { console.error("Error in getting ingredients:", ingredientsError); toast.error("Error in getting dish ingredients."); return }
+	ingredientsData.forEach(ingredient => dishes[ingredient.dish].ingredients[ingredient.food] = ingredient)
+	
+	// Foods
+	const {data: foodsData, error: foodsError} = await supabase
+		.from("foods")
+		.select("id, name, by_volume, calories, protein")
+		.in("id", ingredientsData.map(ingredient => ingredient.food).filter(id => !foods[id])) // get the foods we don't have already
+	if (foodsError) { console.error("Error in getting foods:", foodsError); toast.error("Error in getting foods."); return }
+	foodsData.forEach(food => foods[food.id] = {
+		...food,
+		servings: {},
+	})
+	
+	// Servings
+	const {data: servingsData, error: servingsError} = await supabase
+		.from("servings")
+		.select("food, id, amount, amount_of_unit, unit, modifier")
+		.in("food", foodsData.map(food => food.id))
+	if (servingsError) { console.error("Error populating servings:", servingsError); toast.error("Error in getting foods."); return }
+	servingsData.forEach(serving => foods[serving.food].servings[serving.id] = serving)
+}
 
 export async function addFoodToCache(food: number) {
 	// Foods

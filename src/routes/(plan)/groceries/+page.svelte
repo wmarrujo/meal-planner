@@ -26,9 +26,9 @@
 				Object.values(home.meals[meal].components).forEach(component => {
 					Object.values(dishes[component.dish].ingredients).forEach(ingredient => {
 						temp[ingredient.food] ??= 0
-						temp[ingredient.food] += Object.keys(home.solution!).reduce((acc, person) => acc + home.solution![Number(person)][meal][component.dish], 0) * ingredient.amount
+						temp[ingredient.food] += Object.keys(home.solution!).reduce((acc, person) => acc + (home.solution![Number(person)]?.[meal]?.[component.dish] ?? 0), 0) * ingredient.amount
 					})
-				})
+				}),
 			)
 		}
 		return temp

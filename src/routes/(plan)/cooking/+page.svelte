@@ -22,12 +22,12 @@
 	const servings = $derived.by(() => {
 		const temp: Record<Dish["id"], number> = {}
 		if (home && home.solution) {
-			meals.forEach(meal =>
-				Object.values(home.meals[meal].components).forEach(component => {
+			for (const meal of meals) {
+				for (const component of Object.values(home.meals[meal].components)) {
 					temp[component.dish] ??= 0
-					temp[component.dish] += Object.keys(home.solution!).reduce((acc, person) => acc + home.solution![Number(person)][meal][component.dish], 0)
-				})
-			)
+					temp[component.dish] += Object.keys(home.solution!).reduce((acc, person) => acc + (home.solution![Number(person)]?.[meal]?.[component.dish] ?? 0), 0)
+				}
+			}
 		}
 		return temp
 	})
@@ -62,7 +62,17 @@
 			<h2 class="text-2xl border-b border-base-300 w-full mb-2 px-2">Dishes</h2>
 			<div class="flex flex-col">
 				{#each Object.entries(servings) as [dish, amount] (dish)}
-					<div class="flex gap-2"><div class="w-16 text-right">{amount.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div>{dishes[Number(dish)].name}</div></div>
+					<div class="collapse">
+						<input type="checkbox" class="min-h-0">
+						<div class="collapse-title p-0 min-h-0">
+							<div class="flex gap-2"><div class="w-16 text-right">{amount.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div>{dishes[Number(dish)].name}</div></div>
+						</div>
+						<div class="collapse-content">
+							{#each Object.values(dishes[Number(dish)].ingredients) as ingredient (ingredient.food)}
+								<div class="flex gap-2 pl-5"><div class="w-16 text-right">{(ingredient.amount * amount).toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div class="w-5">{foods[ingredient.food].by_volume ? "ml" : "g"}</div><div>{foods[ingredient.food].name}</div></div>
+							{/each}
+						</div>
+					</div>
 				{/each}
 			</div>
 		</div>
