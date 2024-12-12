@@ -59,7 +59,7 @@
 		<button use:combobox.button><Plus /></button>
 	</label>
 	
-	<div class="absolute mt-1 max-h-40 overflow-scroll w-full p-2 bg-base-300 text-base-content rounded-b-lg {!$combobox.expanded && "hidden"}">
+	<div class="absolute mt-1 max-h-40 z-10 overflow-scroll w-full p-2 bg-base-300 text-base-content rounded-b-lg {!$combobox.expanded && "hidden"}">
 		<!-- TODO: put in yours vs. others button -->
 		<!-- TODO: put in some buttons to say how we're searching. like for who it's by -->
 		<div use:combobox.items role="list">

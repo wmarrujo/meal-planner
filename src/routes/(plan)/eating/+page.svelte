@@ -20,6 +20,7 @@
 	let schedule = $derived.by(() => {
 		let temp: Record<ISODateString, Record<Meal["id"], Record<Dish["id"], Record<Person["id"], number>>>> = {}
 		if (home && home.solution) {
+			console.log(home.solution)
 			Object.entries(home.solution).forEach(([person_, meals]) => { const person = Number(person_)
 				Object.entries(meals).forEach(([meal_, dishes]) => { const meal = Number(meal_)
 					Object.entries(dishes).forEach(([dish_, serving]) => { const dish = Number(dish_)
@@ -68,7 +69,7 @@
 									{#each Object.keys(meal.components) as dishId (dishId)}
 										{@const dish = dishes[Number(dishId)]}
 										<tr>
-											<td>{dish.name}</td>
+											<td>{dish?.name ?? "ERROR"}</td>
 											{#each people as person (person.id)}
 												<td class="text-lg">{schedule[day.toISODate()!]?.[meal.id]?.[dish.id]?.[person.id]?.toLocaleString(undefined, {maximumFractionDigits: 2}) ?? 0}</td>
 											{/each}

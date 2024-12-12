@@ -47,7 +47,7 @@
 							<h2>{formatDate(DateTime.fromISO(day))}</h2>
 						</div>
 						<div class="pl-4 flex flex-col gap-1">
-							{#each mealsInDay.sort((a, b) => a.time!.localeCompare(b.time!)) as meal (meal.id)}
+							{#each mealsInDay.sort((a, b) => (a.time ?? "").localeCompare(b.time ?? "")) as meal (meal.id)}
 								<div class="flex px-2 gap-2 min-w-52">
 									<input name={String(meal.id)} type="checkbox" checked={meals.has(meal.id)} onclick={event => event.currentTarget.checked ? meals.add(meal.id) : meals.delete(meal.id)} class="checkbox" />
 									<h2>{meal.name}</h2>
